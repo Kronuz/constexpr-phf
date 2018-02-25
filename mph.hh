@@ -92,7 +92,7 @@ constexpr void quicksort(It left, It right) {
 constexpr static auto npos = std::numeric_limits<std::size_t>::max();
 
 
-template <typename T, std::size_t N, typename RNG = linear_congruential_generator<std::size_t, 48271, 0, 2147483647>>
+template <typename T, std::size_t N, typename RNG = linear_congruential_generator<T, 48271, 0, 2147483647>>
 class mph {
 	static_assert(N > 0, "Must have at least one element");
 	static_assert(std::is_unsigned<T>::value, "Only supports unsigned integral types");
@@ -142,18 +142,6 @@ private:
 		}
 	};
 
-	constexpr static std::size_t hash(const T &value, std::size_t seed) {
-		std::size_t key = seed ^ value;
-		key = (~key) + (key << 21); // key = (key << 21) - key - 1;
-		key = key ^ (key >> 24);
-		key = (key + (key << 3)) + (key << 8); // key * 265
-		key = key ^ (key >> 14);
-		key = (key + (key << 2)) + (key << 4); // key * 21
-		key = key ^ (key >> 28);
-		key = key + (key << 31);
-		return key;
-	}
-
 	bucket_t _first[N];
 	bucket_t _second[N];
 
@@ -184,10 +172,10 @@ public:
 				if (frm < to - 1) {
 					// slot clash
 					while (true) {
-						auto seed = rng();
+						auto rnd = rng();
 						auto frm_ = frm;
 						for (; frm_ != to; ++frm_) {
-							frm_->slot = hash(frm_->item, seed) % N;
+							frm_->slot = (frm_->item ^ rnd) % N;
 							auto& second_bucket = _second[frm_->slot];
 							if (second_bucket.pos != npos) {
 								break;
@@ -196,7 +184,7 @@ public:
 							second_bucket.pos = frm_->pos;
 						}
 						if (frm_ == to) {
-							first_bucket.item = seed;
+							first_bucket.item = rnd;
 							frm = frm_;
 							break;
 						}
@@ -232,10 +220,8 @@ public:
 			}
 			return first_bucket.pos;
 		}
-		auto hashed = hash(item, first_bucket.item);
-		const auto& second_bucket = _second[hashed % N];
+		const auto& second_bucket = _second[(item ^ first_bucket.item) % N];
 		if (second_bucket.pos != npos) {
-			if (hashed)
 			if (second_bucket.item != item) {
 				return npos;
 			}
