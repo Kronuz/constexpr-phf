@@ -179,66 +179,53 @@ class mph {
 	static_assert(std::is_unsigned<T>::value, "Only supports unsigned integral types");
 
 public:
-	constexpr static int max_clashes = 2 * (1u << (log(N) / 2));
-
 	struct bucket_t {
 		T item;
 		std::size_t pos;
 
-		constexpr bucket_t() : item(0), pos{npos} { }
+		constexpr bucket_t() : item{0}, pos{npos} { }
 	};
 
 private:
-
 	struct hashed_item_t {
-		std::size_t cnt;
-		T slot1;
-		T slot2;
-		T hash;
 		T item;
+		T slot;
+		std::size_t cnt;
 		std::size_t pos;
 
-		constexpr hashed_item_t() : cnt{0}, slot1{0}, slot2{0}, hash{0}, item{0}, pos{npos} { }
+		constexpr hashed_item_t() : item{0}, slot{0}, cnt{0}, pos{npos} { }
 
 		constexpr hashed_item_t(const hashed_item_t& other) :
-			cnt{other.cnt},
-			slot1{other.slot1},
-			slot2{other.slot2},
-			hash{other.hash},
 			item{other.item},
+			slot{other.slot},
+			cnt{other.cnt},
 			pos{other.pos} { }
 
 		constexpr hashed_item_t(hashed_item_t&& other) noexcept :
-			cnt{std::move(other.cnt)},
-			slot1{std::move(other.slot1)},
-			slot2{std::move(other.slot2)},
-			hash{std::move(other.hash)},
 			item{std::move(other.item)},
+			slot{std::move(other.slot)},
+			cnt{std::move(other.cnt)},
 			pos{std::move(other.pos)} { }
 
 		constexpr hashed_item_t& operator=(const hashed_item_t& other) {
-			cnt = other.cnt;
-			slot1 = other.slot1;
-			slot2 = other.slot2;
-			hash = other.hash;
 			item = other.item;
+			slot = other.slot;
+			cnt = other.cnt;
 			pos = other.pos;
 			return *this;
 		}
 
 		constexpr hashed_item_t& operator=(hashed_item_t&& other) noexcept {
-			cnt = std::move(other.cnt);
-			slot1 = std::move(other.slot1);
-			slot2 = std::move(other.slot2);
-			hash = std::move(other.hash);
 			item = std::move(other.item);
+			slot = std::move(other.slot);
+			cnt = std::move(other.cnt);
 			pos = std::move(other.pos);
 			return *this;
 		}
 
 		constexpr bool operator<(const hashed_item_t& other) const {
 			if (cnt == other.cnt) {
-				return slot1 < other.slot1;
+				return slot < other.slot;
 			}
 			return cnt > other.cnt;
 		}
@@ -256,115 +243,89 @@ private:
 		return key;
 	}
 
-	std::size_t _seed;
 	bucket_t _first[N];
 	bucket_t _second[N];
 
 public:
-	constexpr mph(const T (&items)[N]) : _seed(0) {
+	constexpr mph(const T (&items)[N]) {
 		RNG rng;
 		hashed_item_t hashed_items[N];
 
-		for (int retry = 1000; retry; --retry) {
-			_seed = rng();
-
-			for (std::size_t pos = 0; pos < N; ++pos) {
-				auto& item = items[pos];
-				auto& hashed_item = hashed_items[pos];
-				auto hashed = hash(item, _seed);
-				hashed_item.item = item;
-				hashed_item.hash = hashed;
-				hashed_item.slot1 = hashed % N;
-				hashed_item.pos = pos;
-				hashed_item.cnt = 0;
-			}
-
-			quicksort(&hashed_items[0], &hashed_items[N - 1]);
-
-			auto end = &hashed_items[N];
-
-			///
-
-			auto frm = &hashed_items[0];
-			auto to = frm;
-
-#ifdef MPH_SORT_CLASHES
-			do {
-				++to;
-				if (to == end || frm->slot1 != to->slot1) {
-					auto cnt = to - frm;
-					if (cnt > max_clashes) {
-						break;
-					}
-					for (; frm != to; ++frm) {
-						frm->cnt = cnt;
-					}
-				}
-			} while (to != end);
-			if (to != end) {
-				continue;
-			}
-
-			quicksort(&hashed_items[0], &hashed_items[N - 1]);
-
-			///
-			frm = &hashed_items[0];
-			to = frm;
-#endif
-
-			do {
-				++to;
-				if (to == end || frm->slot1 != to->slot1) {
-					auto& first_bucket = _first[frm->slot1];
-					auto cnt = to - frm;
-					if (cnt > 1) {
-						// slot clash
-						if (cnt > max_clashes) {
-							break;
-						}
-						for (int retry = 1000; retry; --retry) {
-							auto seed = rng();
-							first_bucket.item = seed;
-
-							auto frm_ = frm;
-							for (; frm_ != to; ++frm_) {
-								auto hashed = hash(frm_->item, seed);
-								frm_->slot2 = hashed % N;
-								auto& second_bucket = _second[frm_->slot2];
-								if (second_bucket.pos != npos) {
-									break;
-								}
-								second_bucket.item = frm_->item;
-								second_bucket.pos = frm_->pos;
-							}
-							if (frm_ == to) {
-								frm = frm_;
-								break;
-							}
-							// rollback, it failed to place all items in empty slots
-							for (auto frm__ = frm; frm__ != frm_; ++frm__) {
-								auto& second_bucket = _second[frm__->slot2];
-								second_bucket.pos = npos;
-							}
-						}
-						if (frm != to) {
-							break;
-						}
-					} else {
-						// no slot clash
-						first_bucket.item = frm->item;
-						first_bucket.pos = frm->pos;
-						++frm;
-					}
-				}
-			} while (to != end);
-			if (to != end) {
-				continue;
-			}
-			return;
+		for (std::size_t pos = 0; pos < N; ++pos) {
+			auto& item = items[pos];
+			auto& hashed_item = hashed_items[pos];
+			auto hashed = item;
+			hashed_item.item = item;
+			hashed_item.slot = hashed % N;
+			hashed_item.pos = pos;
+			hashed_item.cnt = 0;
 		}
 
-		throw std::invalid_argument("Cannot figure out a suitable MPH table");
+		quicksort(&hashed_items[0], &hashed_items[N - 1]);
+
+		auto end = &hashed_items[N];
+
+		///
+
+		auto frm = &hashed_items[0];
+		auto to = frm;
+
+#ifdef MPH_SORT_CLASHES
+		do {
+			++to;
+			if (to == end || (frm->item % N) != (to->item % N)) {
+				auto cnt = to - frm;
+				for (; frm != to; ++frm) {
+					frm->cnt = cnt;
+				}
+			}
+		} while (to != end);
+
+		quicksort(&hashed_items[0], &hashed_items[N - 1]);
+
+		///
+		frm = &hashed_items[0];
+		to = frm;
+#endif
+
+		do {
+			++to;
+			if (to == end || frm->slot != to->slot) {
+				auto& first_bucket = _first[frm->slot];
+				auto cnt = to - frm;
+				if (cnt > 1) {
+					// slot clash
+					while (true) {
+						auto seed = rng();
+						auto frm_ = frm;
+						for (; frm_ != to; ++frm_) {
+							frm_->slot = hash(frm_->item, seed) % N;
+							auto& second_bucket = _second[frm_->slot];
+							if (second_bucket.pos != npos) {
+								break;
+							}
+							second_bucket.item = frm_->item;
+							second_bucket.pos = frm_->pos;
+						}
+						if (frm_ == to) {
+							first_bucket.item = seed;
+							frm = frm_;
+							break;
+						}
+						// it failed to place all items in empty slots, rollback
+						for (auto frm__ = frm; frm__ != frm_; ++frm__) {
+							auto& second_bucket = _second[frm__->slot];
+							second_bucket.pos = npos;
+						}
+					}
+				} else {
+					// no slot clash
+					first_bucket.item = frm->item;
+					first_bucket.pos = frm->pos;
+					++frm;
+				}
+			}
+		} while (to != end);
 	}
 
 	constexpr std::size_t operator[](const T& item) const {
@@ -376,15 +337,14 @@ public:
 	}
 
 	constexpr std::size_t find(const T& item) const {
-		auto hashed = hash(item, _seed);
-		const auto& first_bucket = _first[hashed % N];
+		const auto& first_bucket = _first[item % N];
 		if (first_bucket.pos != npos) {
 			if (first_bucket.item != item) {
 				return npos;
 			}
 			return first_bucket.pos;
 		}
-		hashed = hash(item, first_bucket.item);
+		auto hashed = hash(item, first_bucket.item);
 		const auto& second_bucket = _second[hashed % N];
 		if (second_bucket.pos != npos) {
 			if (hashed)
