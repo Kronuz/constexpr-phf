@@ -32,99 +32,20 @@
 namespace mph {
 
 ////////////////////////////////////////////////////////////////////////////////
-// Constexpr linear congruential random number engine
+// Constexpr linear congruential random number generator
 
-constexpr std::size_t bit_weight(std::size_t n) {
-	return (
-		(n <= 8 * sizeof(unsigned int)) +
-		(n <= 8 * sizeof(unsigned long)) +
-		(n <= 8 * sizeof(unsigned long long)) +
-		(n <= 128)
-	);
-}
-
-unsigned int select_uint_least(std::integral_constant<std::size_t, 4>);
-unsigned long select_uint_least(std::integral_constant<std::size_t, 3>);
-unsigned long long select_uint_least(std::integral_constant<std::size_t, 2>);
-template<std::size_t N>
-unsigned long long select_uint_least(std::integral_constant<std::size_t, N>) {
-	static_assert(N < 2, "Unsupported type size");
-	return {};
-}
-template<std::size_t N>
-using select_uint_least_t = decltype(select_uint_least(std::integral_constant<std::size_t, bit_weight(N)>()));
-
-template <typename T>
-auto constexpr log(T v) {
-	std::size_t n = 0;
-	while (v > 1) {
-		n += 1;
-		v >>= 1;
-	}
-	return n;
-}
-
-template <typename T, T a, T c, T m>
-class linear_congruential_engine {
+template <typename T, T multiplier, T increment, T modulus>
+class linear_congruential_generator {
 	static_assert(std::is_unsigned<T>::value, "Only supports unsigned integral types");
 
+	T seed = 1u;
+
 public:
-	using result_type = T;
-	static constexpr result_type multiplier = a;
-	static constexpr result_type increment = c;
-	static constexpr result_type modulus = m;
-	static constexpr result_type default_seed = 1u;
-
-	linear_congruential_engine() = default;
-
-	constexpr linear_congruential_engine(result_type s) {
-		seed(s);
+	constexpr T operator()() {
+		seed = (seed * multiplier + increment) % modulus;
+		return seed;
 	}
-
-	void seed(result_type s = default_seed) {
-		state_ = s;
-	}
-
-	constexpr result_type operator()() {
-		using uint_least_t = select_uint_least_t<log(a) + log(m) + 4>;
-		uint_least_t tmp = static_cast<uint_least_t>(multiplier) * state_ + increment;
-		if (modulus) {
-			state_ = tmp % modulus;
-		} else {
-			state_ = tmp;
-		}
-		return state_;
-	}
-
-	constexpr void discard(unsigned long long n) {
-		while (n--) {
-			operator()();
-		}
-	}
-
-	static constexpr result_type min() {
-		return increment == 0u ? 1u : 0u;
-	};
-
-	static constexpr result_type max() {
-		return modulus - 1u;
-	};
-
-	friend constexpr bool operator==(const linear_congruential_engine& self,
-									 const linear_congruential_engine& other) {
-		return self.state_ == other.state_;
-	}
-	friend constexpr bool operator!=(const linear_congruential_engine& self,
-									 const linear_congruential_engine& other) {
-		return !(self == other);
-	}
-
-private:
-	result_type state_ = default_seed;
 };
-
-using minstd_rand0 = linear_congruential_engine<std::uint_fast32_t, 16807, 0, 2147483647>;
-using minstd_rand = linear_congruential_engine<std::uint_fast32_t, 48271, 0, 2147483647>;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -171,7 +92,7 @@ constexpr void quicksort(It left, It right) {
 constexpr static auto npos = std::numeric_limits<std::size_t>::max();
 
 
-template <typename T, std::size_t N, typename RNG = minstd_rand>
+template <typename T, std::size_t N, typename RNG = linear_congruential_generator<std::size_t, 48271, 0, 2147483647>>
 class mph {
 	static_assert(N > 0, "Must have at least one element");
 	static_assert(std::is_unsigned<T>::value, "Only supports unsigned integral types");
