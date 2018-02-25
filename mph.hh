@@ -204,14 +204,6 @@ public:
 		} while (to != end);
 	}
 
-	constexpr std::size_t operator[](const T& item) const {
-		auto pos = find(item);
-		if (pos == npos) {
-			throw std::out_of_range("Item not found");
-		}
-		return pos;
-	}
-
 	constexpr std::size_t find(const T& item) const {
 		const auto& first_bucket = _first[item % N];
 		if (first_bucket.pos != npos) {
@@ -228,6 +220,14 @@ public:
 			return second_bucket.pos;
 		}
 		return npos;
+	}
+
+	constexpr std::size_t operator[](const T& item) const {
+		auto pos = find(item);
+		if (pos == npos) {
+			throw std::out_of_range("Item not found");
+		}
+		return pos;
 	}
 
 	constexpr auto size() const {
