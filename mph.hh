@@ -188,27 +188,23 @@ private:
 	struct hashed_item_t {
 		T item;
 		T slot;
-		std::size_t cnt;
 		std::size_t pos;
 
-		constexpr hashed_item_t() : item{0}, slot{0}, cnt{0}, pos{npos} { }
+		constexpr hashed_item_t() : item{0}, slot{0}, pos{npos} { }
 
 		constexpr hashed_item_t(const hashed_item_t& other) :
 			item{other.item},
 			slot{other.slot},
-			cnt{other.cnt},
 			pos{other.pos} { }
 
 		constexpr hashed_item_t(hashed_item_t&& other) noexcept :
 			item{std::move(other.item)},
 			slot{std::move(other.slot)},
-			cnt{std::move(other.cnt)},
 			pos{std::move(other.pos)} { }
 
 		constexpr hashed_item_t& operator=(const hashed_item_t& other) {
 			item = other.item;
 			slot = other.slot;
-			cnt = other.cnt;
 			pos = other.pos;
 			return *this;
 		}
@@ -216,16 +212,12 @@ private:
 		constexpr hashed_item_t& operator=(hashed_item_t&& other) noexcept {
 			item = std::move(other.item);
 			slot = std::move(other.slot);
-			cnt = std::move(other.cnt);
 			pos = std::move(other.pos);
 			return *this;
 		}
 
 		constexpr bool operator<(const hashed_item_t& other) const {
-			if (cnt == other.cnt) {
-				return slot < other.slot;
-			}
-			return cnt > other.cnt;
+			return slot < other.slot;
 		}
 	};
 
@@ -256,15 +248,11 @@ public:
 			hashed_item.item = item;
 			hashed_item.slot = hashed % N;
 			hashed_item.pos = pos;
-			hashed_item.cnt = 0;
 		}
 
 		quicksort(&hashed_items[0], &hashed_items[N - 1]);
 
 		auto end = &hashed_items[N];
-
-		///
-
 		auto frm = &hashed_items[0];
 		auto to = frm;
 
@@ -272,8 +260,7 @@ public:
 			++to;
 			if (to == end || frm->slot != to->slot) {
 				auto& first_bucket = _first[frm->slot];
-				auto cnt = to - frm;
-				if (cnt > 1) {
+				if (frm < to - 1) {
 					// slot clash
 					while (true) {
 						auto seed = rng();
