@@ -168,8 +168,6 @@ constexpr void quicksort(It left, It right) {
 // "Practical minimal perfect hash functions for large databases", CACM, 35(1):105-121
 // Edward A. Fox, Lenwood S. Heath, Qi Fan Chen and Amjad M. Daoud,
 
-#define MPH_SORT_CLASHES
-
 constexpr static auto npos = std::numeric_limits<std::size_t>::max();
 
 
@@ -269,24 +267,6 @@ public:
 
 		auto frm = &hashed_items[0];
 		auto to = frm;
-
-#ifdef MPH_SORT_CLASHES
-		do {
-			++to;
-			if (to == end || (frm->item % N) != (to->item % N)) {
-				auto cnt = to - frm;
-				for (; frm != to; ++frm) {
-					frm->cnt = cnt;
-				}
-			}
-		} while (to != end);
-
-		quicksort(&hashed_items[0], &hashed_items[N - 1]);
-
-		///
-		frm = &hashed_items[0];
-		to = frm;
-#endif
 
 		do {
 			++to;
