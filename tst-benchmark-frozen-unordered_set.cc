@@ -1,11 +1,13 @@
 /*
-c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-mph ./tst-benchmark-mph.cc && ./tst-benchmark-mph < /usr/share/dict/words
+c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-frozen-unordered_set -I ./frozen/include ./tst-benchmark-frozen-unordered_set.cc && ./tst-benchmark-frozen-unordered_set < /usr/share/dict/words
 */
 #include <iostream>
 #include <chrono>
 #include <string>
 
-#include "mph.hh"
+#include <frozen/unordered_set.h>
+#include <frozen/string.h>
+using namespace frozen::string_literals;
 
 #include "tst-benchmark-hashes.h"
 // #include "tst-benchmark-names.h"
@@ -13,16 +15,16 @@ c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-mph ./tst-benchmark-
 #define OPTIONS NAMES_OPTIONS
 
 
-MPH_INIT_BEGIN(benchmark)
-	#define OPTION MPH_OPTION_INIT
+constexpr static auto set_names = frozen::make_unordered_set({
+	#define OPTION(option, name) #option##_s,
 	OPTIONS(benchmark)
 	#undef OPTION
-MPH_INIT_END()
-
+});
+static const auto it_end = set_names.end();
 
 inline std::size_t exists(const std::string& name) {
-	auto pos = MPH_FIND(name, benchmark);
-	if (pos != mph::npos) {
+	auto it = set_names.find(frozen::string(name.data(), name.size()));
+	if (it != it_end) {
 		return 1;
 	}
 	return 0;
@@ -44,8 +46,8 @@ int main() {
 	}
 
 	std::cerr << std::endl;
-	std::cerr << "tst-benchmark-mph" << std::endl;
-	std::cerr << "-----------------" << std::endl;
+	std::cerr << "tst-benchmark-frozen-unordered_set" << std::endl;
+	std::cerr << "----------------------------------" << std::endl;
 	std::cerr << "count: " << count << std::endl;
 	std::cerr << "duration: " << duration.count() << " ms" << std::endl;
 

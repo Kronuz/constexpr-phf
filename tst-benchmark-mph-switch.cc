@@ -1,5 +1,5 @@
 /*
-c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-mph ./tst-benchmark-mph.cc && ./tst-benchmark-mph < /usr/share/dict/words
+c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-mph-switch ./tst-benchmark-mph-switch.cc && ./tst-benchmark-mph-switch < /usr/share/dict/words
 */
 #include <iostream>
 #include <chrono>
@@ -21,10 +21,11 @@ MPH_INIT_END()
 
 
 inline std::size_t exists(const std::string& name) {
-	auto pos = MPH_FIND(name, benchmark);
-	if (pos != mph::npos) {
-		return 1;
-	}
+	MPH_SWITCH_BEGIN(name, benchmark)
+		#define OPTION(option, name) MPH_OPTION_CASE(option, name): return 1;
+		OPTIONS(benchmark)
+		#undef OPTION
+	MPH_SWITCH_END()
 	return 0;
 }
 
@@ -44,8 +45,8 @@ int main() {
 	}
 
 	std::cerr << std::endl;
-	std::cerr << "tst-benchmark-mph" << std::endl;
-	std::cerr << "-----------------" << std::endl;
+	std::cerr << "tst-benchmark-mph-switch" << std::endl;
+	std::cerr << "------------------------" << std::endl;
 	std::cerr << "count: " << count << std::endl;
 	std::cerr << "duration: " << duration.count() << " ms" << std::endl;
 

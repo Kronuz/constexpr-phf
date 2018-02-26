@@ -1,28 +1,17 @@
 /*
-c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-mph2 ./tst-benchmark-mph2.cc && ./tst-benchmark-mph2 < /usr/share/dict/words
+c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-gperf ./tst-benchmark-gperf.cc && ./tst-benchmark-gperf < /usr/share/dict/words
 */
 #include <iostream>
 #include <chrono>
 #include <string>
 
-#include "mph.hh"
-
-#include "tst-benchmark-hashes.h"
-// #include "tst-benchmark-names.h"
-#include "tst-benchmark-titans.h"
-#define OPTIONS NAMES_OPTIONS
-
-
-MPH_INIT_BEGIN(benchmark)
-	#define OPTION MPH_OPTION_INIT
-	OPTIONS(benchmark)
-	#undef OPTION
-MPH_INIT_END()
+// #include "tst-benchmark-names-gperf.h"
+#include "tst-benchmark-titans-gperf.h"
 
 
 inline std::size_t exists(const std::string& name) {
-	auto pos = MPH_FIND(name, benchmark);
-	if (pos != mph::npos) {
+	auto str = Perfect_Hash::in_word_set(name.data(), name.size());
+	if (str) {
 		return 1;
 	}
 	return 0;
@@ -44,8 +33,8 @@ int main() {
 	}
 
 	std::cerr << std::endl;
-	std::cerr << "tst-benchmark-mph2" << std::endl;
-	std::cerr << "------------------" << std::endl;
+	std::cerr << "tst-benchmark-gperf" << std::endl;
+	std::cerr << "-------------------" << std::endl;
 	std::cerr << "count: " << count << std::endl;
 	std::cerr << "duration: " << duration.count() << " ms" << std::endl;
 
