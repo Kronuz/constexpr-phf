@@ -1,5 +1,5 @@
-/* C++ code produced by gperf version 3.0.3 */
-/* Command-line: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/gperf -ILC++ tst-benchmark-titans-gperf.in  */
+/* C++ code produced by gperf version 3.1 */
+/* Command-line: gperf -ILC++ tst-benchmark-titans-gperf.in  */
 /* Computed positions: -k'1-2' */
 
 #if !((' ' == 32) && ('!' == 33) && ('"' == 34) && ('#' == 35) \
@@ -26,7 +26,7 @@
       && ('w' == 119) && ('x' == 120) && ('y' == 121) && ('z' == 122) \
       && ('{' == 123) && ('|' == 124) && ('}' == 125) && ('~' == 126))
 /* The character set is not based on ISO-646.  */
-#error "gperf generated tables don't work with this execution character set. Please report a bug to <bug-gnu-gperf@gnu.org>."
+#error "gperf generated tables don't work with this execution character set. Please report a bug to <bug-gperf@gnu.org>."
 #endif
 
 #include <string.h>
@@ -41,13 +41,13 @@
 class Perfect_Hash
 {
 private:
-  static inline unsigned int hash (const char *str, unsigned int len);
+  static inline unsigned int hash (const char *str, size_t len);
 public:
-  static const char *in_word_set (const char *str, unsigned int len);
+  static const char *in_word_set (const char *str, size_t len);
 };
 
 inline unsigned int
-Perfect_Hash::hash (register const char *str, register unsigned int len)
+Perfect_Hash::hash (const char *str, size_t len)
 {
   static unsigned char asso_values[] =
     {
@@ -78,11 +78,11 @@ Perfect_Hash::hash (register const char *str, register unsigned int len)
       47, 47, 47, 47, 47, 47, 47, 47, 47, 47,
       47, 47, 47, 47, 47, 47
     };
-  return len + asso_values[(unsigned char)str[1]] + asso_values[(unsigned char)str[0]];
+  return len + asso_values[static_cast<unsigned char>(str[1])] + asso_values[static_cast<unsigned char>(str[0])];
 }
 
 const char *
-Perfect_Hash::in_word_set (register const char *str, register unsigned int len)
+Perfect_Hash::in_word_set (const char *str, size_t len)
 {
   static const char * wordlist[] =
     {
@@ -131,7 +131,7 @@ Perfect_Hash::in_word_set (register const char *str, register unsigned int len)
 
       if (key <= MAX_HASH_VALUE)
         {
-          register const char *s = wordlist[key];
+          const char *s = wordlist[key];
 
           if (*str == *s && !strcmp (str + 1, s + 1))
             return s;
