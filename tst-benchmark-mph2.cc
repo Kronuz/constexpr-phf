@@ -8,7 +8,8 @@ c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-mph2 ./tst-benchmark
 #include "mph.hh"
 
 #include "tst-benchmark-hashes.h"
-#include "tst-benchmark-names.h"
+// #include "tst-benchmark-names.h"
+#include "tst-benchmark-titans.h"
 #define OPTIONS NAMES_OPTIONS
 
 

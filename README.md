@@ -2,6 +2,13 @@
 
 Computes a constexpr minimal perfect hash table
 
+###
+
+```sh
+gperf tst-benchmark-names.in > tst-benchmark-names.c
+gperf tst-benchmark-titans.in > tst-benchmark-titans.c
+```
+
 ## Clang
 
 ```sh
