@@ -99,11 +99,11 @@ class mph {
 	static_assert(std::is_unsigned<T>::value, "Only supports unsigned integral types");
 
 public:
-	struct bucket_t {
+	struct table_t {
 		T item;
 		std::size_t pos;
 
-		constexpr bucket_t() : item{0}, pos{npos} { }
+		constexpr table_t() : item{0}, pos{npos} { }
 	};
 
 private:
@@ -151,8 +151,8 @@ private:
 		}
 	};
 
-	bucket_t _first[N];
-	bucket_t _second[N];
+	table_t _first[N];
+	table_t _second[N];
 
 public:
 	constexpr mph(const T (&items)[N]) {
