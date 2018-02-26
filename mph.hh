@@ -217,14 +217,8 @@ public:
 	}
 
 	constexpr std::size_t find(const T& item) const {
-		auto rnd = _index[item % N];
-		if (rnd) {
-			auto slot = (item ^ rnd) % N;
-			if (_items[slot] == item) {
-				return slot;
-			}
-		}
-		return npos;
+		auto slot = (item ^ _index[item % N]) % N;
+		return _items[slot] == item ? slot : npos;
 	}
 
 	constexpr std::size_t operator[](const T& item) const {
