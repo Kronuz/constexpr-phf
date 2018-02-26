@@ -38,12 +38,12 @@ duration: 10.9965 ms
 tst-benchmark-mph
 -----------------
 count: 15
-duration: 15.0302 ms
+duration: 14.9456 ms
 
 tst-benchmark-mph-switch
 ------------------------
 count: 15
-duration: 14.9135 ms
+duration: 14.9483 ms
 
 tst-benchmark-frozen-unordered_set
 ----------------------------------
@@ -95,12 +95,12 @@ duration: 7.819 ms
 tst-benchmark-mph
 -----------------
 count: 15
-duration: 11.331 ms
+duration: 11.312 ms
 
 tst-benchmark-mph-switch
 ------------------------
 count: 15
-duration: 11.254 ms
+duration: 11.25 ms
 
 tst-benchmark-frozen-unordered_set
 ----------------------------------
