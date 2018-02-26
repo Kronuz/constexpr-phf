@@ -99,27 +99,23 @@ class mph {
 		T item;
 		std::size_t slot;
 		std::size_t cnt;
-		std::size_t pos;
 
-		constexpr hashed_item_t() : item{0}, slot{0}, cnt{0}, pos{npos} { }
+		constexpr hashed_item_t() : item{0}, slot{0}, cnt{0} { }
 
 		constexpr hashed_item_t(const hashed_item_t& other) :
 			item{other.item},
 			slot{other.slot},
-			cnt{other.cnt},
-			pos{other.pos} { }
+			cnt{other.cnt} { }
 
 		constexpr hashed_item_t(hashed_item_t&& other) noexcept :
 			item{std::move(other.item)},
 			slot{std::move(other.slot)},
-			cnt{std::move(other.cnt)},
-			pos{std::move(other.pos)} { }
+			cnt{std::move(other.cnt)} { }
 
 		constexpr hashed_item_t& operator=(const hashed_item_t& other) {
 			item = other.item;
 			slot = other.slot;
 			cnt = other.cnt;
-			pos = other.pos;
 			return *this;
 		}
 
@@ -127,7 +123,6 @@ class mph {
 			item = std::move(other.item);
 			slot = std::move(other.slot);
 			cnt = std::move(other.cnt);
-			pos = std::move(other.pos);
 			return *this;
 		}
 
@@ -153,7 +148,6 @@ public:
 			auto hashed = item;
 			hashed_item.item = item;
 			hashed_item.slot = static_cast<std::size_t>(hashed % N);
-			hashed_item.pos = pos;
 		}
 
 		quicksort(&hashed_items[0], &hashed_items[N - 1]);
