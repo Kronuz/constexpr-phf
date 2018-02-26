@@ -189,12 +189,17 @@ public:
 				while (true) {
 					auto rnd = rng();
 					auto frm_ = frm;
+					std::size_t used_zero = npos;
 					for (; frm_ != to; ++frm_) {
 						auto slot = (frm_->item ^ rnd) % N;
-						if (_items[slot]) {
+						if (_items[slot] || slot == used_zero) {
 							break;
 						}
-						_items[slot] = frm_->item;
+						if (frm_->item) {
+							_items[slot] = frm_->item;
+						} else {
+							used_zero = slot;
+						}
 						frm_->slot = slot;
 					}
 					if (frm_ == to) {
