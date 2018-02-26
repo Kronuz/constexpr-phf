@@ -151,11 +151,11 @@ private:
 		}
 	};
 
-	table_t _first[N];
-	table_t _second[N];
+	T _index[N];
+	table_t _items[N];
 
 public:
-	constexpr mph(const T (&items)[N]) {
+	constexpr mph(const T (&items)[N]) : _index{} {
 		RNG rng;
 		hashed_item_t hashed_items[N];
 
@@ -194,55 +194,38 @@ public:
 		do {
 			++to;
 			if (to == end || frm->slot != to->slot) {
-				auto& first_bucket = _first[frm->slot];
-				if (frm < to - 1) {
-					// slot clash
-					while (true) {
-						auto rnd = rng();
-						auto frm_ = frm;
-						for (; frm_ != to; ++frm_) {
-							frm_->slot = (frm_->item ^ rnd) % N;
-							auto& second_bucket = _second[frm_->slot];
-							if (second_bucket.pos != npos) {
-								break;
-							}
-							second_bucket.item = frm_->item;
-							second_bucket.pos = frm_->pos;
-						}
-						if (frm_ == to) {
-							first_bucket.item = rnd;
-							frm = frm_;
+				auto& index = _index[frm->slot];
+				while (true) {
+					auto rnd = rng();
+					auto frm_ = frm;
+					for (; frm_ != to; ++frm_) {
+						frm_->slot = (frm_->item ^ rnd) % N;
+						auto& second_bucket = _items[frm_->slot];
+						if (second_bucket.pos != npos) {
 							break;
 						}
-						// it failed to place all items in empty slots, rollback
-						for (auto frm__ = frm; frm__ != frm_; ++frm__) {
-							auto& second_bucket = _second[frm__->slot];
-							second_bucket.pos = npos;
-						}
+						second_bucket.item = frm_->item;
+						second_bucket.pos = frm_->pos;
 					}
-				} else {
-					// no slot clash
-					first_bucket.item = frm->item;
-					first_bucket.pos = frm->pos;
-					++frm;
+					if (frm_ == to) {
+						index = rnd;
+						frm = frm_;
+						break;
+					}
+					// it failed to place all items in empty slots, rollback
+					for (auto frm__ = frm; frm__ != frm_; ++frm__) {
+						auto& second_bucket = _items[frm__->slot];
+						second_bucket.pos = npos;
+					}
 				}
 			}
 		} while (to != end);
 	}
 
 	constexpr std::size_t find(const T& item) const {
-		const auto& first_bucket = _first[item % N];
-		if (first_bucket.pos != npos) {
-			if (first_bucket.item != item) {
-				return npos;
-			}
-			return first_bucket.pos;
-		}
-		const auto& second_bucket = _second[(item ^ first_bucket.item) % N];
-		if (second_bucket.pos != npos) {
-			if (second_bucket.item != item) {
-				return npos;
-			}
+		auto slot = (item ^ _index[item % N]) % N;
+		const auto& second_bucket = _items[slot];
+		if (second_bucket.pos != npos && second_bucket.item == item) {
 			return second_bucket.pos;
 		}
 		return npos;
