@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015-2018 Dubalu LLC. All rights reserved.
+ * Copyright (C) 2018 German Mendez Bravo (Kronuz)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -85,9 +85,6 @@ constexpr void quicksort(It left, It right) {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Computes a constexpr minimal perfect hash table
-// Based on:
-// "Practical minimal perfect hash functions for large databases", CACM, 35(1):105-121
-// Edward A. Fox, Lenwood S. Heath, Qi Fan Chen and Amjad M. Daoud,
 
 constexpr static auto npos = std::numeric_limits<std::size_t>::max();
 
