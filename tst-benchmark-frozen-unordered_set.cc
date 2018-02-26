@@ -9,9 +9,11 @@ c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-frozen-unordered_set
 #include <frozen/string.h>
 using namespace frozen::string_literals;
 
-#include "tst-benchmark-hashes.h"
-// #include "tst-benchmark-names.h"
+#ifdef NAMES
+#include "tst-benchmark-names.h"
+#else
 #include "tst-benchmark-titans.h"
+#endif
 #define OPTIONS NAMES_OPTIONS
 
 
