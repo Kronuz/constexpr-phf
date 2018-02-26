@@ -91,6 +91,7 @@ constexpr void quicksort(It left, It right) {
 
 constexpr static auto npos = std::numeric_limits<std::size_t>::max();
 
+#define MPH_SORT_CLASHES
 
 template <typename T, std::size_t N, typename RNG = linear_congruential_generator<T, 48271, 0, 2147483647>>
 class mph {
@@ -109,23 +110,27 @@ private:
 	struct hashed_item_t {
 		T item;
 		T slot;
+		std::size_t cnt;
 		std::size_t pos;
 
-		constexpr hashed_item_t() : item{0}, slot{0}, pos{npos} { }
+		constexpr hashed_item_t() : item{0}, slot{0}, cnt{0}, pos{npos} { }
 
 		constexpr hashed_item_t(const hashed_item_t& other) :
 			item{other.item},
 			slot{other.slot},
+			cnt{other.cnt},
 			pos{other.pos} { }
 
 		constexpr hashed_item_t(hashed_item_t&& other) noexcept :
 			item{std::move(other.item)},
 			slot{std::move(other.slot)},
+			cnt{std::move(other.cnt)},
 			pos{std::move(other.pos)} { }
 
 		constexpr hashed_item_t& operator=(const hashed_item_t& other) {
 			item = other.item;
 			slot = other.slot;
+			cnt = other.cnt;
 			pos = other.pos;
 			return *this;
 		}
@@ -133,12 +138,16 @@ private:
 		constexpr hashed_item_t& operator=(hashed_item_t&& other) noexcept {
 			item = std::move(other.item);
 			slot = std::move(other.slot);
+			cnt = std::move(other.cnt);
 			pos = std::move(other.pos);
 			return *this;
 		}
 
 		constexpr bool operator<(const hashed_item_t& other) const {
-			return slot < other.slot;
+			if (cnt == other.cnt) {
+				return slot < other.slot;
+			}
+			return cnt > other.cnt;
 		}
 	};
 
@@ -164,6 +173,23 @@ public:
 		auto end = &hashed_items[N];
 		auto frm = &hashed_items[0];
 		auto to = frm;
+
+#ifdef MPH_SORT_CLASHES
+		do {
+			++to;
+			if (to == end || (frm->item % N) != (to->item % N)) {
+				auto cnt = to - frm;
+				for (; frm != to; ++frm) {
+					frm->cnt = cnt;
+				}
+			}
+		} while (to != end);
+
+		quicksort(&hashed_items[0], &hashed_items[N - 1]);
+
+		frm = &hashed_items[0];
+		to = frm;
+#endif
 
 		do {
 			++to;
