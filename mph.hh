@@ -97,7 +97,7 @@ class mph {
 
 	struct hashed_item_t {
 		T item;
-		T slot;
+		std::size_t slot;
 		std::size_t cnt;
 		std::size_t pos;
 
@@ -152,7 +152,7 @@ public:
 			auto& hashed_item = hashed_items[pos];
 			auto hashed = item;
 			hashed_item.item = item;
-			hashed_item.slot = hashed % N;
+			hashed_item.slot = static_cast<std::size_t>(hashed % N);
 			hashed_item.pos = pos;
 		}
 
@@ -217,16 +217,16 @@ public:
 	}
 
 	constexpr std::size_t find(const T& item) const {
-		auto slot = (item ^ _index[item % N]) % N;
+		auto slot = static_cast<std::size_t>((item ^ _index[item % N]) % N);
 		return _items[slot] == item ? slot : npos;
 	}
 
 	constexpr std::size_t operator[](const T& item) const {
-		auto pos = find(item);
-		if (pos == npos) {
+		auto slot = find(item);
+		if (slot == npos) {
 			throw std::out_of_range("Item not found");
 		}
-		return pos;
+		return slot;
 	}
 
 	constexpr auto size() const {
