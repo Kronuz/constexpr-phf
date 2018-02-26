@@ -98,15 +98,6 @@ class mph {
 	static_assert(N > 0, "Must have at least one element");
 	static_assert(std::is_unsigned<T>::value, "Only supports unsigned integral types");
 
-public:
-	struct table_t {
-		T item;
-		std::size_t pos;
-
-		constexpr table_t() : item{0}, pos{npos} { }
-	};
-
-private:
 	struct hashed_item_t {
 		T item;
 		T slot;
@@ -152,10 +143,10 @@ private:
 	};
 
 	T _index[N];
-	table_t _items[N];
+	T _items[N];
 
 public:
-	constexpr mph(const T (&items)[N]) : _index{} {
+	constexpr mph(const T (&items)[N]) : _index{}, _items{} {
 		RNG rng;
 		hashed_item_t hashed_items[N];
 
@@ -199,13 +190,12 @@ public:
 					auto rnd = rng();
 					auto frm_ = frm;
 					for (; frm_ != to; ++frm_) {
-						frm_->slot = (frm_->item ^ rnd) % N;
-						auto& second_bucket = _items[frm_->slot];
-						if (second_bucket.pos != npos) {
+						auto slot = (frm_->item ^ rnd) % N;
+						if (_items[slot]) {
 							break;
 						}
-						second_bucket.item = frm_->item;
-						second_bucket.pos = frm_->pos;
+						_items[slot] = frm_->item;
+						frm_->slot = slot;
 					}
 					if (frm_ == to) {
 						index = rnd;
@@ -214,8 +204,7 @@ public:
 					}
 					// it failed to place all items in empty slots, rollback
 					for (auto frm__ = frm; frm__ != frm_; ++frm__) {
-						auto& second_bucket = _items[frm__->slot];
-						second_bucket.pos = npos;
+						_items[frm__->slot] = 0;
 					}
 				}
 			}
@@ -224,9 +213,8 @@ public:
 
 	constexpr std::size_t find(const T& item) const {
 		auto slot = (item ^ _index[item % N]) % N;
-		const auto& second_bucket = _items[slot];
-		if (second_bucket.pos != npos && second_bucket.item == item) {
-			return second_bucket.pos;
+		if (_items[slot] == item) {
+			return slot;
 		}
 		return npos;
 	}
