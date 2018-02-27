@@ -34,7 +34,7 @@ int main() {
 
 	std::chrono::duration<double, std::milli> duration{0};
 
-	while(std::cin) {
+	while (std::cin) {
 		std::getline(std::cin, line);
 		auto start = std::chrono::steady_clock::now();
 		count += exists(line);
