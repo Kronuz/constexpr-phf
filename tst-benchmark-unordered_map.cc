@@ -19,6 +19,7 @@ static const std::unordered_map<std::string, void*> map_names = {
 };
 static const auto it_end = map_names.end();
 
+
 inline std::size_t exists(const std::string& name) {
 	auto it = map_names.find(name);
 	if (it != it_end) {

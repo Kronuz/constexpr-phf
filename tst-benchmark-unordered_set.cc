@@ -19,6 +19,7 @@ static const std::unordered_set<std::string> set_names = {
 };
 static const auto it_end = set_names.end();
 
+
 inline std::size_t exists(const std::string& name) {
 	auto it = set_names.find(name);
 	if (it != it_end) {

@@ -19,6 +19,7 @@ constexpr static auto set_names = frozen::make_unordered_set({
 });
 static const auto it_end = set_names.end();
 
+
 inline std::size_t exists(const std::string& name) {
 	auto it = set_names.find(frozen::string(name.data(), name.size()));
 	if (it != it_end) {

@@ -7,15 +7,19 @@ struct fnv1ah {
 		for (std::size_t i = 0; i < len; ++i) {
 			hash = (hash ^ static_cast<unsigned char>(p[i])) * prime;
 		}
-        return hash;
+		return hash;
 	}
 	template <size_t N>
 	static constexpr T hash(const char(&s)[N], T seed = offset) {
 		return hash(s, N - 1, seed);
 	}
 	static T hash(const std::string& str, T seed = offset) {
-        return hash(str.data(), str.size(), seed);
-    }
+		return hash(str.data(), str.size(), seed);
+	}
+	template <typename... Args>
+	T operator()(Args&&... args) {
+		return hash(std::forward<Args>(args)...);
+	}
 };
 using fnv1ah32 = fnv1ah<std::uint32_t, 0x1000193UL, 2166136261UL>;
 using fnv1ah64 = fnv1ah<std::uint64_t, 0x100000001b3ULL, 14695981039346656037ULL>;
