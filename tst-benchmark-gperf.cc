@@ -5,6 +5,9 @@ c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-gperf ./tst-benchmar
 #include <chrono>
 #include <string>
 
+// gpref.h files are generated like this:
+//   gperf -ILC++ tst-benchmark-names-gperf.in > tst-benchmark-names-gperf.h
+//   gperf -ILC++ tst-benchmark-titans-gperf.in > tst-benchmark-titans-gperf.h
 #include "tst-benchmark-titans-gperf.h"
 
 
