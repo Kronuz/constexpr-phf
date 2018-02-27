@@ -6,18 +6,14 @@ c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-switch ./tst-benchma
 #include <string>
 
 #include "tst-benchmark-hashes.h"
-#ifdef NAMES
-#include "tst-benchmark-names.h"
-#else
+
 #include "tst-benchmark-titans.h"
-#endif
-#define OPTIONS NAMES_OPTIONS
 
 
 inline std::size_t exists(const std::string& name) {
 	switch (fnv1ah32::hash(name)) {
 		#define OPTION(option, name) case fnv1ah32::hash(#option): return 1;
-		OPTIONS(benchmark)
+		TITANS_OPTIONS(benchmark)
 		#undef OPTION
 	}
 	return 0;

@@ -8,17 +8,13 @@ c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-unordered_set ./tst-
 #include <unordered_set>
 
 #include "tst-benchmark-hashes.h"
-#ifdef NAMES
-#include "tst-benchmark-names.h"
-#else
+
 #include "tst-benchmark-titans.h"
-#endif
-#define OPTIONS NAMES_OPTIONS
 
 
 static const std::unordered_set<std::string> set_names = {
 	#define OPTION(option, name) #option,
-	OPTIONS(benchmark)
+	TITANS_OPTIONS(benchmark)
 	#undef OPTION
 };
 static const auto it_end = set_names.end();

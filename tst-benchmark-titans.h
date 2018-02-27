@@ -1,4 +1,4 @@
-#define NAMES_OPTIONS(...) \
+#define TITANS_OPTIONS(...) \
   OPTION(Coeus, __VA_ARGS__) \
   OPTION(Crius, __VA_ARGS__) \
   OPTION(Cronus, __VA_ARGS__) \

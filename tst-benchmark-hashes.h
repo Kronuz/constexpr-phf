@@ -18,7 +18,8 @@ struct fnv1ah {
     }
 };
 using fnv1ah32 = fnv1ah<std::uint32_t, 0x1000193UL, 2166136261UL>;
+using fnv1ah64 = fnv1ah<std::uint64_t, 0x100000001b3ULL, 14695981039346656037ULL>;
 
 constexpr std::uint32_t operator"" _fnv(const char* s, size_t size) {
-	return fnv1ah32::hash(s, size, 0);
+	return fnv1ah64::hash(s, size);
 }

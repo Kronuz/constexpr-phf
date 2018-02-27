@@ -5,11 +5,7 @@ c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-gperf ./tst-benchmar
 #include <chrono>
 #include <string>
 
-#ifdef NAMES
-#include "tst-benchmark-names-gperf.h"
-#else
 #include "tst-benchmark-titans-gperf.h"
-#endif
 
 
 inline std::size_t exists(const std::string& name) {

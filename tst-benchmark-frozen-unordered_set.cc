@@ -9,17 +9,12 @@ c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-frozen-unordered_set
 #include <frozen/string.h>
 using namespace frozen::string_literals;
 
-#ifdef NAMES
-#include "tst-benchmark-names.h"
-#else
 #include "tst-benchmark-titans.h"
-#endif
-#define OPTIONS NAMES_OPTIONS
 
 
 constexpr static auto set_names = frozen::make_unordered_set({
 	#define OPTION(option, name) #option##_s,
-	OPTIONS(benchmark)
+	TITANS_OPTIONS(benchmark)
 	#undef OPTION
 });
 static const auto it_end = set_names.end();
