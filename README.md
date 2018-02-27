@@ -33,6 +33,7 @@ c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-unordered_set-clang 
 ./tst-benchmark-unordered_map-clang < /usr/share/dict/words
 ```
 
+```
 tst-benchmark-gperf
 -------------------
 count: 15
@@ -67,6 +68,7 @@ tst-benchmark-unordered_map
 ---------------------------
 count: 15
 duration: 20.5951 ms
+```
 
 
 ### GCC 7
@@ -89,6 +91,7 @@ g++-7 -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-unordered_set-gcc7
 ./tst-benchmark-unordered_map-gcc7 < /usr/share/dict/words
 ```
 
+```
 tst-benchmark-gperf
 -------------------
 count: 15
@@ -123,3 +126,4 @@ tst-benchmark-unordered_map
 ---------------------------
 count: 15
 duration: 17.963 ms
+```
