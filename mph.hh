@@ -88,8 +88,6 @@ constexpr void quicksort(It left, It right) {
 
 constexpr static auto npos = std::numeric_limits<std::size_t>::max();
 
-#define MPH_SORT_CLASHES
-
 template <typename T, std::size_t N, typename RNG = linear_congruential_generator<T, 48271, 0, 2147483647>>
 class mph {
 	static_assert(N > 0, "Must have at least one element");
@@ -98,9 +96,9 @@ class mph {
 	struct hashed_item_t {
 		T item;
 		std::size_t slot;
-		std::size_t cnt;
+		std::size_t* cnt;
 
-		constexpr hashed_item_t() : item{0}, slot{0}, cnt{0} { }
+		constexpr hashed_item_t() : item{0}, slot{0}, cnt{nullptr} { }
 
 		constexpr hashed_item_t(const hashed_item_t& other) :
 			item{other.item},
@@ -127,10 +125,7 @@ class mph {
 		}
 
 		constexpr bool operator<(const hashed_item_t& other) const {
-			if (cnt == other.cnt) {
-				return slot < other.slot;
-			}
-			return cnt > other.cnt;
+			return (*cnt == *other.cnt) ? slot < other.slot : *cnt > *other.cnt;
 		}
 	};
 
@@ -141,13 +136,17 @@ public:
 	constexpr mph(const T (&items)[N]) : _index{}, _items{} {
 		RNG rng;
 		hashed_item_t hashed_items[N];
+		std::size_t cnt[N];
 
 		for (std::size_t pos = 0; pos < N; ++pos) {
 			auto& item = items[pos];
 			auto& hashed_item = hashed_items[pos];
 			auto hashed = item;
+			auto slot = static_cast<std::size_t>(hashed % N);
 			hashed_item.item = item;
-			hashed_item.slot = static_cast<std::size_t>(hashed % N);
+			hashed_item.slot = slot;
+			hashed_item.cnt = &cnt[slot];
+			++*hashed_item.cnt;
 		}
 
 		quicksort(&hashed_items[0], &hashed_items[N - 1]);
@@ -155,23 +154,6 @@ public:
 		auto end = &hashed_items[N];
 		auto frm = &hashed_items[0];
 		auto to = frm;
-
-#ifdef MPH_SORT_CLASHES
-		do {
-			++to;
-			if (to == end || frm->slot != to->slot) {
-				auto cnt = to - frm;
-				for (; frm != to; ++frm) {
-					frm->cnt = cnt;
-				}
-			}
-		} while (to != end);
-
-		quicksort(&hashed_items[0], &hashed_items[N - 1]);
-
-		frm = &hashed_items[0];
-		to = frm;
-#endif
 
 		do {
 			++to;
