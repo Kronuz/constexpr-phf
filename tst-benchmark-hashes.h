@@ -17,7 +17,7 @@ struct fnv1ah {
 		return hash(str.data(), str.size(), seed);
 	}
 	template <typename... Args>
-	T operator()(Args&&... args) {
+	T operator()(Args&&... args) const {
 		return hash(std::forward<Args>(args)...);
 	}
 };
