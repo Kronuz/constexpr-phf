@@ -191,9 +191,9 @@ class phf {
 	static_assert(std::is_unsigned<T>::value, "Only supports unsigned integral types");
 
 	struct elem_type {
-		using pos_type = std::size_t;
 		using item_type = T;
-		pos_type pos;
+
+		std::size_t pos;
 		item_type item;
 
 		constexpr elem_type() : pos{npos}, item{0} { }
@@ -266,39 +266,32 @@ public:
 		auto to = frm;
 		auto end = &buckets[size];
 
-		std::size_t item_zero = npos;
 		do {
 			++to;
 			if (to == end || frm->slot != to->slot) {
 				auto& index = _index[frm->slot];
 				for (index_type displacement = 1; displacement > 0; ++displacement) {
 					auto frm_ = frm;
-					std::size_t item_zero_ = item_zero;
 					for (; frm_ != to; ++frm_) {
 						auto slot = static_cast<std::size_t>(_hasher.hash(frm_->item, displacement) % elems_size);
-						if (_elems[slot].item || item_zero_ == slot) {
+						if (_elems[slot].pos != npos) {
 							if (_elems[slot].item == frm_->item) {
 								throw std::invalid_argument("PHF failed: duplicate items found");
 							}
 							break;
 						}
-						if (frm_->item) {
-							_elems[slot].item = frm_->item;
-						} else {
-							item_zero_ = slot;
-						}
+						_elems[slot].item = frm_->item;
 						_elems[slot].pos = frm_->pos;
 						frm_->slot = slot;
 					}
 					if (frm_ == to) {
-						item_zero = item_zero_;
 						index = displacement;
 						frm = frm_;
 						break;
 					}
 					// it failed to place all items in empty slots, rollback
 					for (auto frm__ = frm; frm__ != frm_; ++frm__) {
-						_elems[frm__->slot].item = 0;
+						_elems[frm__->slot].pos = npos;
 					}
 				}
 				if (frm != to) {
