@@ -77,9 +77,6 @@ struct fast_hasher {};
 template <>
 struct fast_hasher<std::uint32_t> {
 	constexpr std::uint32_t hash(std::uint32_t key, std::int32_t displacement) const {
-		if (displacement < 0) {
-			return -displacement - 1;
-		}
 		key = key ^ displacement;
 		return key;
 	}
@@ -87,9 +84,6 @@ struct fast_hasher<std::uint32_t> {
 template <>
 struct fast_hasher<std::uint64_t> {
 	constexpr std::uint32_t hash(std::uint64_t key, std::int32_t displacement) const {
-		if (displacement < 0) {
-			return -displacement - 1;
-		}
 		key = key ^ displacement;
 		return static_cast<std::uint32_t>(key);
 	}
@@ -101,9 +95,6 @@ struct strong_hasher {};
 template <>
 struct strong_hasher<std::uint32_t> {
 	constexpr std::uint32_t hash(std::uint32_t key, std::int32_t displacement) const {
-		if (displacement < 0) {
-			return -displacement - 1;
-		}
 		key = key ^ displacement;
 		key = ~key + (key << 15); // key = (key << 15) - key - 1;
 		key = key ^ (key >> 12);
@@ -117,9 +108,6 @@ struct strong_hasher<std::uint32_t> {
 template <>
 struct strong_hasher<std::uint64_t> {
 	constexpr std::uint32_t hash(std::uint64_t key, std::int32_t displacement) const {
-		if (displacement < 0) {
-			return -displacement - 1;
-		}
 		key = key ^ displacement;
 		key = (~key) + (key << 18); // key = (key << 18) - key - 1;
 		key = key ^ (key >> 31);
@@ -271,56 +259,42 @@ public:
 		auto end = &buckets[size];
 
 		std::size_t item_zero = npos;
-		std::size_t next = 0;
 		do {
 			++to;
 			if (to == end || frm->slot != to->slot) {
 				auto& index = _index[frm->slot];
-				if (to - frm > 1) {
-					for (std::int32_t displacement = 1; displacement > 0; ++displacement) {
-						auto frm_ = frm;
-						std::size_t item_zero_ = item_zero;
-						for (; frm_ != to; ++frm_) {
-							auto slot = static_cast<std::size_t>(_hasher.hash(frm_->item, displacement) % elems_size);
-							if (_elems[slot].item || item_zero_ == slot) {
-								if (_elems[slot].item == frm_->item) {
-									throw std::invalid_argument("PHF failed: duplicate items found");
-								}
-								break;
+				for (std::int32_t displacement = 1; displacement > 0; ++displacement) {
+					auto frm_ = frm;
+					std::size_t item_zero_ = item_zero;
+					for (; frm_ != to; ++frm_) {
+						auto slot = static_cast<std::size_t>(_hasher.hash(frm_->item, displacement) % elems_size);
+						if (_elems[slot].item || item_zero_ == slot) {
+							if (_elems[slot].item == frm_->item) {
+								throw std::invalid_argument("PHF failed: duplicate items found");
 							}
-							if (frm_->item) {
-								_elems[slot].item = frm_->item;
-							} else {
-								item_zero_ = slot;
-							}
-							_elems[slot].pos = frm_->pos;
-							frm_->slot = slot;
-						}
-						if (frm_ == to) {
-							item_zero = item_zero_;
-							index = displacement;
-							frm = frm_;
 							break;
 						}
-						// it failed to place all items in empty slots, rollback
-						for (auto frm__ = frm; frm__ != frm_; ++frm__) {
-							_elems[frm__->slot].item = 0;
+						if (frm_->item) {
+							_elems[slot].item = frm_->item;
+						} else {
+							item_zero_ = slot;
 						}
+						_elems[slot].pos = frm_->pos;
+						frm_->slot = slot;
 					}
-					if (frm != to) {
-						throw std::invalid_argument("PHF failed: cannot find suitable table");
+					if (frm_ == to) {
+						item_zero = item_zero_;
+						index = displacement;
+						frm = frm_;
+						break;
 					}
-				} else {
-					while (_elems[next].item || item_zero == next) ++next;
-					if (frm->item) {
-						_elems[next].item = frm->item;
-					} else {
-						item_zero = next;
+					// it failed to place all items in empty slots, rollback
+					for (auto frm__ = frm; frm__ != frm_; ++frm__) {
+						_elems[frm__->slot].item = 0;
 					}
-					_elems[next].pos = frm->pos;
-					std::int32_t displacement = -static_cast<std::int32_t>(next) - 1;
-					index = displacement;
-					frm = to;
+				}
+				if (frm != to) {
+					throw std::invalid_argument("PHF failed: cannot find suitable table");
 				}
 			}
 		} while (to != end);
