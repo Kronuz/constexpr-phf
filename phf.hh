@@ -357,6 +357,7 @@ public:
 		return N;
 	}
 
+	/*
 	void dump() const {
 		auto displacement_type_bits = sizeof(displacement_type) * 8;
 		auto index_type_item_type_bits = sizeof(typename index_type::item_type) * 8;
@@ -384,6 +385,7 @@ public:
 		"constexpr std::size_t index_size = sizeof(_index) / sizeof(index_type);\n"
 		"using hash_type = fnv1ah%lu;\n", index_type_item_type_bits);
 	}
+	*/
 };
 
 
