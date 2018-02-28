@@ -1,5 +1,5 @@
 /*
-c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-stop_words -I ./frozen/include ./tst-benchmark-stop_words.cc && ./tst-benchmark-stop_words < /usr/share/dict/words
+c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-stop_words -I ./frozen/include ./tst-benchmark-stop_words.cc && gzcat 'The Count of Monte Cristo.txt.gz' | ./tst-benchmark-stop_words
 */
 #include <algorithm>
 #include <chrono>
