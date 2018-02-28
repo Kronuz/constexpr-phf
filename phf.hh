@@ -193,10 +193,10 @@ class phf {
 	struct index_type {
 		using item_type = T;
 
-		std::size_t pos;
 		item_type item;
+		std::size_t pos;
 
-		constexpr index_type() : pos{npos}, item{0} { }
+		constexpr index_type() : item{0}, pos{npos} { }
 	};
 
 	Hasher _hasher;
