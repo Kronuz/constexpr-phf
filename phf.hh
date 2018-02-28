@@ -76,15 +76,15 @@ template <typename T>
 struct fast_hasher {};
 template <>
 struct fast_hasher<std::uint32_t> {
-	constexpr std::uint32_t hash(std::uint32_t key, std::int32_t displacement) const {
-		key = key ^ displacement;
+	constexpr std::uint32_t hash(std::uint32_t key, std::uint32_t seed) const {
+		key = key ^ seed;
 		return key;
 	}
 };
 template <>
 struct fast_hasher<std::uint64_t> {
-	constexpr std::uint32_t hash(std::uint64_t key, std::int32_t displacement) const {
-		key = key ^ displacement;
+	constexpr std::uint32_t hash(std::uint64_t key, std::uint32_t seed) const {
+		key = key ^ seed;
 		return static_cast<std::uint32_t>(key);
 	}
 };
@@ -94,8 +94,8 @@ template <typename T>
 struct strong_hasher {};
 template <>
 struct strong_hasher<std::uint32_t> {
-	constexpr std::uint32_t hash(std::uint32_t key, std::int32_t displacement) const {
-		key = key ^ displacement;
+	constexpr std::uint32_t hash(std::uint32_t key, std::uint32_t seed) const {
+		key = key ^ seed;
 		key = ~key + (key << 15); // key = (key << 15) - key - 1;
 		key = key ^ (key >> 12);
 		key = key + (key << 2);
@@ -107,8 +107,8 @@ struct strong_hasher<std::uint32_t> {
 };
 template <>
 struct strong_hasher<std::uint64_t> {
-	constexpr std::uint32_t hash(std::uint64_t key, std::int32_t displacement) const {
-		key = key ^ displacement;
+	constexpr std::uint32_t hash(std::uint64_t key, std::uint32_t seed) const {
+		key = key ^ seed;
 		key = (~key) + (key << 18); // key = (key << 18) - key - 1;
 		key = key ^ (key >> 31);
 		key = key * 21; // key = (key + (key << 2)) + (key << 4);
@@ -183,13 +183,13 @@ template <typename T, std::size_t N,
 class phf {
 	static_assert(N > 0, "Must have at least one element");
 	static_assert(elems_size >= N, "elems_size must be at least N");
-	static_assert(elems_size <= std::numeric_limits<std::int32_t>::max(), "Must have fewer elements");
+	static_assert(elems_size <= std::numeric_limits<std::uint32_t>::max(), "Must have fewer elements");
 	static_assert(index_size > 0, "Must have at least one element");
 	static_assert(std::is_unsigned<T>::value, "Only supports unsigned integral types");
 
 	Hasher _hasher;
 	std::size_t _size;
-	std::int32_t _index[index_size];
+	std::uint32_t _index[index_size];
 
 	struct elem_t {
 		std::size_t pos;
@@ -263,7 +263,7 @@ public:
 			++to;
 			if (to == end || frm->slot != to->slot) {
 				auto& index = _index[frm->slot];
-				for (std::int32_t displacement = 1; displacement > 0; ++displacement) {
+				for (std::uint32_t displacement = 1; displacement > 0; ++displacement) {
 					auto frm_ = frm;
 					std::size_t item_zero_ = item_zero;
 					for (; frm_ != to; ++frm_) {
