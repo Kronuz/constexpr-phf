@@ -292,6 +292,9 @@ public:
 					// it failed to place all items in empty slots, rollback
 					for (auto frm__ = frm; frm__ != frm_; ++frm__) {
 						_elems[frm__->slot].pos = npos;
+#ifndef NDEBUG
+						_elems[frm__->slot].item = 0;
+#endif
 					}
 				}
 				if (frm != to) {
@@ -305,7 +308,15 @@ public:
 		if (_size) {
 			for (std::size_t i = 0; i < elems_size; ++i) {
 				_elems[i].pos = npos;
+#ifndef NDEBUG
+				_elems[i].item = 0;
+#endif
 			}
+#ifndef NDEBUG
+			for (std::size_t i = 0; i < index_size; ++i) {
+				_index[i] = 0;
+			}
+#endif
 		}
 	}
 
