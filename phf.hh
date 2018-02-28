@@ -190,7 +190,6 @@ class phf {
 
 	static_assert(N > 0, "Must have at least one element");
 	static_assert(index_size >= N, "index_size must be at least N");
-	static_assert(index_size <= std::numeric_limits<displacement_type>::max(), "Must have fewer elements");
 	static_assert(displacement_size > 0, "Must have at least one element");
 	static_assert(std::is_unsigned<T>::value, "Only supports unsigned integral types");
 
