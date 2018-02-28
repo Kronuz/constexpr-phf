@@ -182,19 +182,23 @@ template <typename T, std::size_t N,
 	std::size_t elems_size = next_prime(N + N / 4)
 >
 class phf {
+	using index_type = std::uint32_t;
+
 	static_assert(N > 0, "Must have at least one element");
 	static_assert(elems_size >= N, "elems_size must be at least N");
-	static_assert(elems_size <= std::numeric_limits<std::uint32_t>::max(), "Must have fewer elements");
+	static_assert(elems_size <= std::numeric_limits<index_type>::max(), "Must have fewer elements");
 	static_assert(index_size > 0, "Must have at least one element");
 	static_assert(std::is_unsigned<T>::value, "Only supports unsigned integral types");
 
 	Hasher _hasher;
 	std::size_t _size;
-	std::uint32_t _index[index_size];
+	index_type _index[index_size];
 
 	struct elem_t {
-		std::size_t pos;
-		T item;
+		using pos_type = std::size_t;
+		using item_type = T;
+		pos_type pos;
+		item_type item;
 
 		constexpr elem_t() : pos{npos}, item{0} { }
 	};
@@ -268,7 +272,7 @@ public:
 			++to;
 			if (to == end || frm->slot != to->slot) {
 				auto& index = _index[frm->slot];
-				for (std::uint32_t displacement = 1; displacement > 0; ++displacement) {
+				for (index_type displacement = 1; displacement > 0; ++displacement) {
 					auto frm_ = frm;
 					std::size_t item_zero_ = item_zero;
 					for (; frm_ != to; ++frm_) {
