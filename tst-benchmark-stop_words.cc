@@ -203,14 +203,14 @@ int main() {
 	{
 		#include "tst-benchmark-stop_words-table32.h"
 		hash_type fnv1a{};
-		phf::fast_hasher<elem_type::item_type> _hasher;
+		phf::fast_hasher<index_type::item_type> _hasher;
 		////
 		std::size_t count = 0;
 		auto start = std::chrono::steady_clock::now();
 		for (int i = 0; i < 100; ++i)
 		for (const auto& word : words) {
 			auto item = fnv1a(word);
-			const auto& elem = _elems[static_cast<std::size_t>(_hasher.hash(item, _index[item % index_size]) % elems_size)];
+			const auto& elem = _index[static_cast<std::size_t>(_hasher.hash(item, _displacement[item % displacement_size]) % index_size)];
 			if (elem.item == item) {
 				++count;
 			}
@@ -230,14 +230,14 @@ int main() {
 	{
 		#include "tst-benchmark-stop_words-table64.h"
 		hash_type fnv1a{};
-		phf::fast_hasher<elem_type::item_type> _hasher;
+		phf::fast_hasher<index_type::item_type> _hasher;
 		////
 		std::size_t count = 0;
 		auto start = std::chrono::steady_clock::now();
 		for (int i = 0; i < 100; ++i)
 		for (const auto& word : words) {
 			auto item = fnv1a(word);
-			const auto& elem = _elems[static_cast<std::size_t>(_hasher.hash(item, _index[item % index_size]) % elems_size)];
+			const auto& elem = _index[static_cast<std::size_t>(_hasher.hash(item, _displacement[item % displacement_size]) % index_size)];
 			if (elem.item == item) {
 				++count;
 			}

@@ -172,40 +172,40 @@ constexpr std::size_t next_prime(std::size_t x) {
 constexpr static auto npos = std::numeric_limits<std::size_t>::max();
 
 /*
- * For minimal perfect hash, use elems_size = N
- * For smaller tables, use index_size = N / 5
- * For faster (more reliable) construction use index_size = N
+ * For minimal perfect hash, use index_size = N
+ * For smaller tables, use displacement_size = N / 5
+ * For faster (more reliable) construction use displacement_size = N
  */
 template <typename T, std::size_t N,
 	typename Hasher = fast_hasher<T>,
-	std::size_t index_size = N / 5,
-	std::size_t elems_size = next_prime(N + N / 4)
+	std::size_t displacement_size = N / 5,
+	std::size_t index_size = next_prime(N + N / 4)
 >
 class phf {
-	using index_type = std::uint32_t;
+	using displacement_type = std::uint32_t;
 
 	static_assert(N > 0, "Must have at least one element");
-	static_assert(elems_size >= N, "elems_size must be at least N");
-	static_assert(elems_size <= std::numeric_limits<index_type>::max(), "Must have fewer elements");
-	static_assert(index_size > 0, "Must have at least one element");
+	static_assert(index_size >= N, "index_size must be at least N");
+	static_assert(index_size <= std::numeric_limits<displacement_type>::max(), "Must have fewer elements");
+	static_assert(displacement_size > 0, "Must have at least one element");
 	static_assert(std::is_unsigned<T>::value, "Only supports unsigned integral types");
 
-	struct elem_type {
+	struct index_type {
 		using item_type = T;
 
 		std::size_t pos;
 		item_type item;
 
-		constexpr elem_type() : pos{npos}, item{0} { }
+		constexpr index_type() : pos{npos}, item{0} { }
 	};
 
 	Hasher _hasher;
 	std::size_t _size;
+	displacement_type _displacement[displacement_size];
 	index_type _index[index_size];
-	elem_type _elems[elems_size];
 
 public:
-	constexpr phf() : _size{0}, _index{}, _elems{} { }
+	constexpr phf() : _size{0}, _displacement{}, _index{} { }
 
 	template <typename... Args>
 	constexpr phf(Args&&... args) : phf() {
@@ -233,7 +233,7 @@ public:
 		clear();
 		_size = size;
 
-		std::size_t cnt[index_size]{};
+		std::size_t cnt[displacement_size]{};
 		struct bucket_type {
 			std::size_t* cnt;
 			std::size_t slot;
@@ -250,7 +250,7 @@ public:
 			auto& bucket = buckets[pos];
 			auto& item = items[pos];
 			auto hashed = item;
-			auto slot = static_cast<std::size_t>(hashed % index_size);
+			auto slot = static_cast<std::size_t>(hashed % displacement_size);
 			bucket.cnt = &cnt[slot];
 			bucket.slot = slot;
 			bucket.pos = pos;
@@ -261,7 +261,7 @@ public:
 		// Step 2: Sort in descending order and process.
 		quicksort(&buckets[0], &buckets[size - 1]);
 
-		// Step 3: Search for suitable displacements.
+		// Step 3: Search for suitable displacement.
 		auto frm = &buckets[0];
 		auto to = frm;
 		auto end = &buckets[size];
@@ -269,19 +269,19 @@ public:
 		do {
 			++to;
 			if (to == end || frm->slot != to->slot) {
-				auto& index = _index[frm->slot];
-				for (index_type displacement = 1; displacement > 0; ++displacement) {
+				auto& index = _displacement[frm->slot];
+				for (displacement_type displacement = 1; displacement > 0; ++displacement) {
 					auto frm_ = frm;
 					for (; frm_ != to; ++frm_) {
-						auto slot = static_cast<std::size_t>(_hasher.hash(frm_->item, displacement) % elems_size);
-						if (_elems[slot].pos != npos) {
-							if (_elems[slot].item == frm_->item) {
+						auto slot = static_cast<std::size_t>(_hasher.hash(frm_->item, displacement) % index_size);
+						if (_index[slot].pos != npos) {
+							if (_index[slot].item == frm_->item) {
 								throw std::invalid_argument("PHF failed: duplicate items found");
 							}
 							break;
 						}
-						_elems[slot].item = frm_->item;
-						_elems[slot].pos = frm_->pos;
+						_index[slot].item = frm_->item;
+						_index[slot].pos = frm_->pos;
 						frm_->slot = slot;
 					}
 					if (frm_ == to) {
@@ -291,9 +291,9 @@ public:
 					}
 					// it failed to place all items in empty slots, rollback
 					for (auto frm__ = frm; frm__ != frm_; ++frm__) {
-						_elems[frm__->slot].pos = npos;
+						_index[frm__->slot].pos = npos;
 #ifndef NDEBUG
-						_elems[frm__->slot].item = 0;
+						_index[frm__->slot].item = 0;
 #endif
 					}
 				}
@@ -306,27 +306,27 @@ public:
 
 	constexpr void clear() noexcept {
 		if (_size) {
-			for (std::size_t i = 0; i < elems_size; ++i) {
-				_elems[i].pos = npos;
+			for (std::size_t i = 0; i < index_size; ++i) {
+				_index[i].pos = npos;
 #ifndef NDEBUG
-				_elems[i].item = 0;
+				_index[i].item = 0;
 #endif
 			}
 #ifndef NDEBUG
-			for (std::size_t i = 0; i < index_size; ++i) {
-				_index[i] = 0;
+			for (std::size_t i = 0; i < displacement_size; ++i) {
+				_displacement[i] = 0;
 			}
 #endif
 		}
 	}
 
 	constexpr std::size_t lookup(const T& item) const noexcept {
-		const auto& elem = _elems[static_cast<std::size_t>(_hasher.hash(item, _index[item % index_size]) % elems_size)];
+		const auto& elem = _index[static_cast<std::size_t>(_hasher.hash(item, _displacement[item % displacement_size]) % index_size)];
 		return elem.pos;
 	}
 
 	constexpr std::size_t find(const T& item) const noexcept {
-		const auto& elem = _elems[static_cast<std::size_t>(_hasher.hash(item, _index[item % index_size]) % elems_size)];
+		const auto& elem = _index[static_cast<std::size_t>(_hasher.hash(item, _displacement[item % displacement_size]) % index_size)];
 		if (elem.item == item) {
 			return elem.pos;
 		}
@@ -360,12 +360,12 @@ public:
  */
 template <typename T, std::size_t N,
 	typename Hasher = fast_hasher<T>,
-	std::size_t index_size = N / 5,
-	std::size_t elems_size = next_prime(N + N / 4)
+	std::size_t displacement_size = N / 5,
+	std::size_t index_size = next_prime(N + N / 4)
 >
 constexpr static auto
 make_phf(const T (&items)[N]) {
-	return phf<T, N, Hasher, index_size, elems_size>(items);
+	return phf<T, N, Hasher, displacement_size, index_size>(items);
 }
 
 /*
@@ -373,11 +373,11 @@ make_phf(const T (&items)[N]) {
  */
 template <typename T, std::size_t N,
 	typename Hasher = fast_hasher<T>,
-	std::size_t index_size = N / 5
+	std::size_t displacement_size = N / 5
 >
 constexpr static auto
 make_mphf(const T (&items)[N]) {
-	return phf<T, N, Hasher, index_size, N>(items);
+	return phf<T, N, Hasher, displacement_size, N>(items);
 }
 
 } // namespace phf
