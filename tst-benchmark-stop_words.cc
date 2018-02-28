@@ -25,8 +25,9 @@ using namespace frozen::string_literals;
 
 int main() {
 	////////////////////////////////////////////////////////////////////////////
-	std::vector<std::string> words{std::istream_iterator<std::string>(std::cin), std::istream_iterator<std::string>()};
+	std::vector<std::string> words{std::istream_iterator<std::string>(std::cin), {}};
 	////////////////////////////////////////////////////////////////////////////
+	std::cerr << "Using " << words.size() << " words..." << std::endl;
 
 
 	//           _
