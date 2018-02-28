@@ -1,24 +1,24 @@
 /*
 c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-stop_words -I ./frozen/include ./tst-benchmark-stop_words.cc && gzcat 'The Count of Monte Cristo.txt.gz' | ./tst-benchmark-stop_words
 */
-#include <iostream>
 #include <algorithm>
 #include <chrono>
 #include <fstream>
-#include <string>
-#include <vector>
+#include <iostream>
+#include <iterator>
 #include <set>
-#include <unordered_set>
+#include <string>
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
-#include <frozen/unordered_set.h>
 #include <frozen/string.h>
+#include <frozen/unordered_set.h>
 
-#include "phf.hh"
 #include "hashes.hh"
+#include "phf.hh"
 
 #include "tst-benchmark-stop_words.h"
-
 #include "tst-benchmark-stop_words-gperf.h"  // gperf -ILC++ tst-benchmark-stop_words-gperf.in > tst-benchmark-stop_words-gperf.h
 
 
