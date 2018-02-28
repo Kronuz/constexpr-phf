@@ -25,6 +25,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <limits>
 #include <stdexcept>
 
@@ -42,8 +43,8 @@ constexpr void swap(T& a, T& b) {
 	b = tmp;
 }
 
-template <typename It>
-constexpr It partition(It left, It right) {
+template <typename Iterator>
+constexpr Iterator partition(Iterator left, Iterator right) {
 	auto pivot = left + (right - left) / 2;
 	auto value = *pivot;
 	swap(*right, *pivot);
@@ -57,8 +58,8 @@ constexpr It partition(It left, It right) {
 	return left;
 }
 
-template <typename It>
-constexpr void quicksort(It left, It right) {
+template <typename Iterator>
+constexpr void quicksort(Iterator left, Iterator right) {
 	if (left < right) {
 		auto pivot = partition(left, right);
 		quicksort(left, pivot);
@@ -203,21 +204,25 @@ class phf {
 public:
 	constexpr phf() : _size{0}, _index{}, _elems{} { }
 
-	constexpr phf(const T* items, std::size_t size) : phf() {
-		reset(items, size);
+	template <typename... Args>
+	constexpr phf(Args&&... args) : phf() {
+		assign(std::forward<Args>(args)...);
 	}
 
-	constexpr phf(const T (&items)[N]) : phf(items, N) { }
-
-	constexpr void clear() noexcept {
-		if (_size) {
-			for (std::size_t i = 0; i < elems_size; ++i) {
-				_elems[i].pos = npos;
-			}
-		}
+	constexpr void assign(const T (&items)[N]) {
+		assign(items, N);
 	}
 
-	constexpr void reset(const T* items, std::size_t size) {
+	constexpr void assign(std::initializer_list<T> ilist) {
+		assign(ilist.begin(), ilist.end());
+	}
+
+	template <typename Iterator>
+	constexpr void assign(Iterator first, Iterator last) {
+		assign(first, last - first);
+	}
+
+	constexpr void assign(const T* items, std::size_t size) {
 		if (size > N) {
 			throw std::invalid_argument("PHF failed: too many items received");
 		}
@@ -298,6 +303,14 @@ public:
 				}
 			}
 		} while (to != end);
+	}
+
+	constexpr void clear() noexcept {
+		if (_size) {
+			for (std::size_t i = 0; i < elems_size; ++i) {
+				_elems[i].pos = npos;
+			}
+		}
 	}
 
 	constexpr std::size_t lookup(const T& item) const noexcept {
