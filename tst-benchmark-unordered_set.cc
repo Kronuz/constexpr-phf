@@ -7,7 +7,7 @@ c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-unordered_set ./tst-
 
 #include <unordered_set>
 
-#include "tst-benchmark-hashes.h"
+#include "hashes.hh"
 
 #include "tst-benchmark-titans.h"
 

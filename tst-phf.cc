@@ -8,7 +8,7 @@ c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-phf ./tst-phf.cc && ./tst-phf
 
 #include "phf.hh"
 
-#include "tst-benchmark-hashes.h"
+#include "hashes.hh"
 
 #include "tst-benchmark-titans.h"
 #include "tst-benchmark-names.h"

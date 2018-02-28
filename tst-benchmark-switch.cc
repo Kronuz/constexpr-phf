@@ -5,7 +5,7 @@ c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-switch ./tst-benchma
 #include <chrono>
 #include <string>
 
-#include "tst-benchmark-hashes.h"
+#include "hashes.hh"
 
 #include "tst-benchmark-titans.h"
 
