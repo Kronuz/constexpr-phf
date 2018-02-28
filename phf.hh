@@ -77,6 +77,7 @@ template <typename T>
 struct fast_hasher {};
 template <>
 struct fast_hasher<std::uint32_t> {
+	constexpr fast_hasher() { }
 	constexpr std::uint32_t hash(std::uint32_t key, std::uint32_t seed) const {
 		key = key ^ seed;
 		return key;
@@ -84,6 +85,7 @@ struct fast_hasher<std::uint32_t> {
 };
 template <>
 struct fast_hasher<std::uint64_t> {
+	constexpr fast_hasher() { }
 	constexpr std::uint32_t hash(std::uint64_t key, std::uint32_t seed) const {
 		key = key ^ seed;
 		return static_cast<std::uint32_t>(key);
@@ -95,6 +97,7 @@ template <typename T>
 struct strong_hasher {};
 template <>
 struct strong_hasher<std::uint32_t> {
+	constexpr strong_hasher() { }
 	constexpr std::uint32_t hash(std::uint32_t key, std::uint32_t seed) const {
 		key = key ^ seed;
 		key = ~key + (key << 15); // key = (key << 15) - key - 1;
@@ -108,6 +111,7 @@ struct strong_hasher<std::uint32_t> {
 };
 template <>
 struct strong_hasher<std::uint64_t> {
+	constexpr strong_hasher() { }
 	constexpr std::uint32_t hash(std::uint64_t key, std::uint32_t seed) const {
 		key = key ^ seed;
 		key = (~key) + (key << 18); // key = (key << 18) - key - 1;
@@ -199,7 +203,8 @@ class phf {
 		constexpr index_type() : item{0}, pos{npos} { }
 	};
 
-	Hasher _hasher;
+	static constexpr Hasher _hasher{};
+
 	std::size_t _size;
 	displacement_type _displacement[displacement_size];
 	index_type _index[index_size];
