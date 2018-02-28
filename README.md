@@ -1,8 +1,44 @@
-# A C++ constexpr perfect hash table
+# A C++ constexpr (minimal) perfect hash function generator
 
-Computes a constexpr perfect hash table (or minimal perfect hash)
+Computes a constexpr (minimal) perfect hash function generator
+
+There are times when one wishes there was a *fast* simple way to do
+things like this:
+
+```c
+switch (option) {
+	case "first_option":
+		// do something
+		break;
+	case "other_option":
+		// do something else
+		break;
+
+	...
+
+	case "so_many_options":
+		// do so much more
+		break;
+}
+```
+
+There are options: `std::unordered_map<std::string, void (*)(void)>` (map of
+function pointers), a bunch of `if`/`else`, a `switch()` of hashed strings,
+`gperf` (GNU's perfect hash function generator), etc.
+
 
 ## Benchmark
+
+The contenders:
+
++ `std::set`
++ `std::unordered_set`
++ `std::unordered_map`
++ `switch()` statements of hashes
++ `frozen::unordered_set` (https://blog.quarkslab.com/frozen-an-header-only-constexpr-alternative-to-gperf-for-c14-users.html)
++ `gperf` (https://www.gnu.org/software/gperf/)
++ `phf` our (minimal) perfect hash function generator based on Dr. Daoud's work (http://iswsa.acm.org/mphf/index.html)
+
 
 ### Clang
 
@@ -14,18 +50,21 @@ gzcat 'The Count of Monte Cristo.txt.gz' | ./tst-benchmark-stop_words-clang
 
 ```
 Finding stop words in a total of 464220 words...
-  stopped 23776700/46422000 in 662.897 ms [phf(fnv1ah32)::dump]
-  stopped 23776700/46422000 in 682.839 ms [phf(fnv1ah64)::dump]
-  stopped 23776700/46422000 in 822.897 ms [switch(phf(fnv1ah32))]
-  stopped 23776700/46422000 in 812.447 ms [switch(phf(fnv1ah64))]
-  stopped 23776700/46422000 in 827.008 ms [phf(fnv1ah32)]
-  stopped 23776700/46422000 in 861.319 ms [phf(fnv1ah64)]
-  stopped 23776700/46422000 in 824.845 ms [gperf]
-  stopped 23776700/46422000 in 893.336 ms [frozen::unordered_set]
-  stopped 23776700/46422000 in 1609.27 ms [switch(fnv1ah32)]
-  stopped 23776700/46422000 in 1639.28 ms [switch(fnv1ah64)]
-  stopped 23776700/46422000 in 1974.48 ms [unordered_set]
-  stopped 23776700/46422000 in 5245.91 ms [set]
+  stopped 23776700/46422000 in 638.122 ms [phf(fnv1ah32)::dump]
+  stopped 23776700/46422000 in 670.987 ms [phf(fnv1ah64)::dump]
+  stopped 23776700/46422000 in 783.914 ms [switch(phf(fnv1ah32))]
+  stopped 23776700/46422000 in 849.898 ms [switch(phf(fnv1ah64))]
+  stopped 23776700/46422000 in 819.775 ms [phf(fnv1ah32)]
+  stopped 23776700/46422000 in 855.006 ms [phf(fnv1ah64)]
+  stopped 23776700/46422000 in 852.964 ms [gperf]
+  stopped 23776700/46422000 in 886.937 ms [frozen::unordered_set]
+  stopped 23776700/46422000 in 1615.35 ms [switch(fnv1ah32)]
+  stopped 23776700/46422000 in 1632.29 ms [switch(fnv1ah64)]
+  stopped 23776700/46422000 in 1950.46 ms [unordered_set]
+  stopped 23776700/46422000 in 1935.1 ms [unordered_map]
+  stopped 23776700/46422000 in 2301.85 ms [if/else(fnv1ah32)]
+  stopped 23776700/46422000 in 2320.5 ms [if/else(fnv1ah64)]
+  stopped 23776700/46422000 in 5230.43 ms [set]
 ```
 
 
@@ -39,16 +78,19 @@ gzcat 'The Count of Monte Cristo.txt.gz' | ./tst-benchmark-stop_words-gcc7
 
 ```
 Finding stop words in a total of 464220 words...
-  stopped 23776700/46422000 in 574.195 ms [phf(fnv1ah32)::dump]
-  stopped 23776700/46422000 in 557.475 ms [phf(fnv1ah64)::dump]
-  stopped 23776700/46422000 in 678.713 ms [switch(phf(fnv1ah32))]
-  stopped 23776700/46422000 in 690.241 ms [switch(phf(fnv1ah64))]
-  stopped 23776700/46422000 in 678.776 ms [phf(fnv1ah32)]
-  stopped 23776700/46422000 in 691.492 ms [phf(fnv1ah64)]
-  stopped 23776700/46422000 in 775.358 ms [gperf]
-  stopped 23776700/46422000 in 833.808 ms [frozen::unordered_set]
-  stopped 23776700/46422000 in 1414.45 ms [switch(fnv1ah32)]
-  stopped 23776700/46422000 in 1449.67 ms [switch(fnv1ah64)]
-  stopped 23776700/46422000 in 1953.66 ms [unordered_set]
-  stopped 23776700/46422000 in 4489.51 ms [set]
+  stopped 23776700/46422000 in 610.706 ms [phf(fnv1ah32)::dump]
+  stopped 23776700/46422000 in 681.957 ms [phf(fnv1ah64)::dump]
+  stopped 23776700/46422000 in 745.737 ms [switch(phf(fnv1ah32))]
+  stopped 23776700/46422000 in 797.741 ms [switch(phf(fnv1ah64))]
+  stopped 23776700/46422000 in 747.25 ms [phf(fnv1ah32)]
+  stopped 23776700/46422000 in 812.421 ms [phf(fnv1ah64)]
+  stopped 23776700/46422000 in 812.355 ms [gperf]
+  stopped 23776700/46422000 in 895.396 ms [frozen::unordered_set]
+  stopped 23776700/46422000 in 1549.94 ms [switch(fnv1ah32)]
+  stopped 23776700/46422000 in 1695.61 ms [switch(fnv1ah64)]
+  stopped 23776700/46422000 in 2053 ms [unordered_set]
+  stopped 23776700/46422000 in 2084.86 ms [unordered_map]
+  stopped 23776700/46422000 in 6894.86 ms [if/else(fnv1ah32)]
+  stopped 23776700/46422000 in 9346.91 ms [if/else(fnv1ah64)]
+  stopped 23776700/46422000 in 4234.64 ms [set]
 ```
