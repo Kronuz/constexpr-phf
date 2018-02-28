@@ -202,7 +202,7 @@ class phf {
 		constexpr index_type() : item{0}, pos{npos} { }
 	};
 
-	static constexpr Hasher _hasher{};
+	Hasher _hasher{};
 
 	std::size_t _size;
 	displacement_type _displacement[displacement_size];
