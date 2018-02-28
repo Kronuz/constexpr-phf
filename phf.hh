@@ -190,20 +190,19 @@ class phf {
 	static_assert(index_size > 0, "Must have at least one element");
 	static_assert(std::is_unsigned<T>::value, "Only supports unsigned integral types");
 
-	Hasher _hasher;
-	std::size_t _size;
-	index_type _index[index_size];
-
-	struct elem_t {
+	struct elem_type {
 		using pos_type = std::size_t;
 		using item_type = T;
 		pos_type pos;
 		item_type item;
 
-		constexpr elem_t() : pos{npos}, item{0} { }
+		constexpr elem_type() : pos{npos}, item{0} { }
 	};
 
-	elem_t _elems[elems_size];
+	Hasher _hasher;
+	std::size_t _size;
+	index_type _index[index_size];
+	elem_type _elems[elems_size];
 
 public:
 	constexpr phf() : _size{0}, _index{}, _elems{} { }
@@ -235,13 +234,13 @@ public:
 		_size = size;
 
 		std::size_t cnt[index_size]{};
-		struct bucket_t {
+		struct bucket_type {
 			std::size_t* cnt;
 			std::size_t slot;
 			std::size_t pos;
 			T item;
-			constexpr bucket_t() : cnt{nullptr}, slot{0}, pos{0}, item{0} { }
-			constexpr bool operator<(const bucket_t& other) const {
+			constexpr bucket_type() : cnt{nullptr}, slot{0}, pos{0}, item{0} { }
+			constexpr bool operator<(const bucket_type& other) const {
 				return (*cnt == *other.cnt) ? slot < other.slot : *cnt > *other.cnt;
 			}
 		} buckets[N]{};
