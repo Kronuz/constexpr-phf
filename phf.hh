@@ -332,18 +332,15 @@ public:
 
 	constexpr std::size_t find(const T& item) const noexcept {
 		const auto& elem = _index[static_cast<std::size_t>(_hasher.hash(item, _displacement[item % displacement_size]) % index_size)];
-		if (elem.item == item) {
-			return elem.pos;
-		}
-		return npos;
+		return (elem.item == item ? 0 : npos) | elem.pos;
 	}
 
 	constexpr std::size_t operator[](const T& item) const {
-		auto pos = find(item);
-		if (pos == npos) {
-			throw std::out_of_range("Item not found");
+		const auto& elem = _index[static_cast<std::size_t>(_hasher.hash(item, _displacement[item % displacement_size]) % index_size)];
+		if (elem.item == item) {
+			return elem.pos;
 		}
-		return pos;
+		throw std::out_of_range("Item not found");
 	}
 
 	constexpr bool empty() const noexcept {
