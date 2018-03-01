@@ -29,66 +29,6 @@ int main() {
 	std::cerr << "Finding stop words in a total of " << words.size() << " words..." << std::endl;
 
 
-	/*        _      __  ____            _       _     ___________         _
-	 *  _ __ | |__  / _|/ / _|_ ____   _/ | __ _| |__ |___ /___ \ \ _ _ __| |_   _ _ __ ___  _ __
-	 * | '_ \| '_ \| |_| | |_| '_ \ \ / / |/ _` | '_ \  |_ \ __) | (_|_) _` | | | | '_ ` _ \| '_ \
-	 * | |_) | | | |  _| |  _| | | \ V /| | (_| | | | |___) / __/| |_ | (_| | |_| | | | | | | |_) |
-	 * | .__/|_| |_|_| | |_| |_| |_|\_/ |_|\__,_|_| |_|____/_____| (_|_)__,_|\__,_|_| |_| |_| .__/
-	 * |_|              \_\                                     /_/                         |_|
-	 */
-	{
-		#include "tst-benchmark-stop_words-table32.h"
-		hash_type fnv1a{};
-		phf::fast_hasher<index_type::item_type> _hasher;
-		////
-		std::size_t total = 0;
-		std::size_t stopped = 0;
-		auto start = std::chrono::steady_clock::now();
-		for (int i = 0; i < 100; ++i)
-		for (const auto& word : words) {
-			auto item = fnv1a(word);
-			const auto& elem = _index[static_cast<std::size_t>(_hasher.hash(item, _displacement[item % displacement_size]) % index_size)];
-			if (elem.item == item) {
-				++stopped;
-			}
-			++total;
-		}
-		auto stop = std::chrono::steady_clock::now();
-		std::chrono::duration<double, std::milli> duration = (stop - start);
-		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [phf(fnv1ah32)::dump]" << std::endl;
-	}
-
-
-	/*        _      __  ____            _       _      __   _  _ __         _
-	 *  _ __ | |__  / _|/ / _|_ ____   _/ | __ _| |__  / /_ | || |\ \ _ _ __| |_   _ _ __ ___  _ __
-	 * | '_ \| '_ \| |_| | |_| '_ \ \ / / |/ _` | '_ \| '_ \| || |_| (_|_) _` | | | | '_ ` _ \| '_ \
-	 * | |_) | | | |  _| |  _| | | \ V /| | (_| | | | | (_) |__   _| |_ | (_| | |_| | | | | | | |_) |
-	 * | .__/|_| |_|_| | |_| |_| |_|\_/ |_|\__,_|_| |_|\___/   |_| | (_|_)__,_|\__,_|_| |_| |_| .__/
-	 * |_|              \_\                                       /_/                         |_|
-	 */
-	{
-		#include "tst-benchmark-stop_words-table64.h"
-		hash_type fnv1a{};
-		phf::fast_hasher<index_type::item_type> _hasher;
-		////
-		std::size_t total = 0;
-		std::size_t stopped = 0;
-		auto start = std::chrono::steady_clock::now();
-		for (int i = 0; i < 100; ++i)
-		for (const auto& word : words) {
-			auto item = fnv1a(word);
-			const auto& elem = _index[static_cast<std::size_t>(_hasher.hash(item, _displacement[item % displacement_size]) % index_size)];
-			if (elem.item == item) {
-				++stopped;
-			}
-			++total;
-		}
-		auto stop = std::chrono::steady_clock::now();
-		std::chrono::duration<double, std::milli> duration = (stop - start);
-		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [phf(fnv1ah64)::dump]" << std::endl;
-	}
-
-
 	/*               _ _       _      __      _      __  ____            _       _     _____________
 	 *  _____      _(_) |_ ___| |__  / /_ __ | |__  / _|/ / _|_ ____   _/ | __ _| |__ |___ /___ \ \ \
 	 * / __\ \ /\ / / | __/ __| '_ \| || '_ \| '_ \| |_| | |_| '_ \ \ / / |/ _` | '_ \  |_ \ __) | | |
