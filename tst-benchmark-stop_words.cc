@@ -1,25 +1,50 @@
 /*
 c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-stop_words -I ./frozen/include ./tst-benchmark-stop_words.cc && gzcat 'The Count of Monte Cristo.txt.gz' | ./tst-benchmark-stop_words
 */
+
+// #define DISABLE_SWITCH_PHF_FNV1AH32 1
+// #define DISABLE_SWITCH_PHF_FNV1AH64 1
+// #define DISABLE_PHF_FNV1AH32 1
+// #define DISABLE_PHF_FNV1AH64 1
+// #define DISABLE_GPREF 1
+// #define DISABLE_FROZEN_UNORDERED_SET 1
+// #define DISABLE_SWITCH_FNV1AH32 1
+// #define DISABLE_SWITCH_FNV1AH64 1
+// #define DISABLE_UNORDERED_SET 1
+// #define DISABLE_UNORDERED_MAP 1
+// #define DISABLE_IF_ELSE_FNV1AH32 1
+// #define DISABLE_IF_ELSE_FNV1AH64 1
+// #define DISABLE_SET 1
+
 #include <algorithm>
 #include <chrono>
 #include <fstream>
 #include <iostream>
 #include <iterator>
-#include <set>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
 
-#include <frozen/string.h>
-#include <frozen/unordered_set.h>
+#include <string>
+#include <vector>
 
 #include "hashes.hh"
 #include "phf.hh"
 
 #include "tst-benchmark-stop_words.h"
+#ifndef DISABLE_GPREF
 #include "tst-benchmark-stop_words-gperf.h"  // gperf -ILC++ tst-benchmark-stop_words-gperf.in > tst-benchmark-stop_words-gperf.h
+#endif
+#ifndef DISABLE_FROZEN_UNORDERED_SET
+#include <frozen/string.h>
+#include <frozen/unordered_set.h>
+#endif
+#ifndef DISABLE_UNORDERED_SET
+#include <unordered_set>
+#endif
+#ifndef DISABLE_UNORDERED_MAP
+#include <unordered_map>
+#endif
+#ifndef DISABLE_SET
+#include <set>
+#endif
 
 
 int main() {
@@ -36,6 +61,7 @@ int main() {
 	 * |___/ \_/\_/ |_|\__\___|_| |_| || .__/|_| |_|_| | |_| |_| |_|\_/ |_|\__,_|_| |_|____/_____| | |
 	 *                               \_\_|              \_\                                     /_/_/
 	 */
+	#ifndef DISABLE_SWITCH_PHF_FNV1AH32
 	{
 		fnv1ah32 fnv1a{};
 		constexpr auto stop_words_phf = phf::make_phf({
@@ -62,6 +88,7 @@ int main() {
 		std::chrono::duration<double, std::milli> duration = (stop - start);
 		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [switch(phf(fnv1ah32))]" << std::endl;
 	}
+	#endif
 
 
 	/*               _ _       _      __      _      __  ____            _       _      __   _  _ ____
@@ -71,6 +98,7 @@ int main() {
 	 * |___/ \_/\_/ |_|\__\___|_| |_| || .__/|_| |_|_| | |_| |_| |_|\_/ |_|\__,_|_| |_|\___/   |_| | | |
 	 *                               \_\_|              \_\                                       /_/_/
 	 */
+	#ifndef DISABLE_SWITCH_PHF_FNV1AH64
 	{
 		fnv1ah64 fnv1a{};
 		constexpr auto stop_words_phf = phf::make_phf({
@@ -97,6 +125,7 @@ int main() {
 		std::chrono::duration<double, std::milli> duration = (stop - start);
 		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [switch(phf(fnv1ah64))]" << std::endl;
 	}
+	#endif
 
 
 	/*        _      __  ____            _       _     ___________
@@ -106,6 +135,7 @@ int main() {
 	 * | .__/|_| |_|_| | |_| |_| |_|\_/ |_|\__,_|_| |_|____/_____| |
 	 * |_|              \_\                                     /_/
 	 */
+	#ifndef DISABLE_PHF_FNV1AH32
 	{
 		fnv1ah32 fnv1a{};
 		constexpr auto stop_words_phf = phf::make_phf({
@@ -129,6 +159,7 @@ int main() {
 		std::chrono::duration<double, std::milli> duration = (stop - start);
 		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [phf(fnv1ah32)]" << std::endl;
 	}
+	#endif
 
 
 	/*        _      __  ____            _       _      __   _  _ __
@@ -138,6 +169,7 @@ int main() {
 	 * | .__/|_| |_|_| | |_| |_| |_|\_/ |_|\__,_|_| |_|\___/   |_| | |
 	 * |_|              \_\                                       /_/
 	 */
+	#ifndef DISABLE_PHF_FNV1AH64
 	{
 		fnv1ah64 fnv1a{};
 		constexpr auto stop_words_phf = phf::make_phf({
@@ -161,6 +193,7 @@ int main() {
 		std::chrono::duration<double, std::milli> duration = (stop - start);
 		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [phf(fnv1ah64)]" << std::endl;
 	}
+	#endif
 
 
 	/*                         __
@@ -170,6 +203,7 @@ int main() {
 	 *  \__, | .__/ \___|_|  |_|
 	 *  |___/|_|
 	 */
+	#ifndef DISABLE_GPREF
 	{
 		std::size_t total = 0;
 		std::size_t stopped = 0;
@@ -185,6 +219,7 @@ int main() {
 		std::chrono::duration<double, std::milli> duration = (stop - start);
 		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [gperf]" << std::endl;
 	}
+	#endif
 
 
 	/*   __                                                      _                   _              _
@@ -194,6 +229,7 @@ int main() {
 	 * |_| |_|  \___/___\___|_| |_(_|_)\__,_|_| |_|\___/|_|  \__,_|\___|_|  \___|\__,_|___|___/\___|\__|
 	 *                                                                               |_____|
 	 */
+	#ifndef DISABLE_FROZEN_UNORDERED_SET
 	{
 		auto stop_words_frozen_unordered_set = frozen::make_unordered_set({
 			#define STRING(option, name) frozen::string(option),
@@ -217,6 +253,7 @@ int main() {
 		std::chrono::duration<double, std::milli> duration = (stop - start);
 		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [frozen::unordered_set]" << std::endl;
 	}
+	#endif
 
 
 	/*               _ _       _      ____            _       _     ___________
@@ -226,6 +263,7 @@ int main() {
 	 * |___/ \_/\_/ |_|\__\___|_| |_| |_| |_| |_|\_/ |_|\__,_|_| |_|____/_____| |
 	 *                               \_\                                     /_/
 	 */
+	#ifndef DISABLE_SWITCH_FNV1AH32
 	{
 		fnv1ah32 fnv1a{};
 		////
@@ -245,6 +283,7 @@ int main() {
 		std::chrono::duration<double, std::milli> duration = (stop - start);
 		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [switch(fnv1ah32)]" << std::endl;
 	}
+	#endif
 
 
 	/*               _ _       _      ____            _       _      __   _  _ __
@@ -254,6 +293,7 @@ int main() {
 	 * |___/ \_/\_/ |_|\__\___|_| |_| |_| |_| |_|\_/ |_|\__,_|_| |_|\___/   |_| | |
 	 *                               \_\                                       /_/
 	 */
+	#ifndef DISABLE_SWITCH_FNV1AH64
 	{
 		fnv1ah64 fnv1a{};
 		////
@@ -273,6 +313,7 @@ int main() {
 		std::chrono::duration<double, std::milli> duration = (stop - start);
 		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [switch(fnv1ah64)]" << std::endl;
 	}
+	#endif
 
 
 	/*                            _                   _              _
@@ -282,6 +323,7 @@ int main() {
 	 *  \__,_|_| |_|\___/|_|  \__,_|\___|_|  \___|\__,_|___|___/\___|\__|
 	 *                                                |_____|
 	 */
+	#ifndef DISABLE_UNORDERED_SET
 	{
 		std::unordered_set<std::string> stop_words_set{
 			#define STRING(option, name) option,
@@ -305,6 +347,7 @@ int main() {
 		std::chrono::duration<double, std::milli> duration = (stop - start);
 		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [unordered_set]" << std::endl;
 	}
+	#endif
 
 
 	/*                            _                   _
@@ -314,6 +357,7 @@ int main() {
 	 *  \__,_|_| |_|\___/|_|  \__,_|\___|_|  \___|\__,_|___|_| |_| |_|\__,_| .__/
 	 *                                                |_____|              |_|
 	 */
+	#ifndef DISABLE_UNORDERED_MAP
 	{
 		std::unordered_map<std::string, bool> stop_words_set{
 			#define STRING(option, name) { option, true },
@@ -337,6 +381,7 @@ int main() {
 		std::chrono::duration<double, std::milli> duration = (stop - start);
 		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [unordered_map]" << std::endl;
 	}
+	#endif
 
 
 	/*  _  __   __   _           ____            _       _     ___________
@@ -346,6 +391,7 @@ int main() {
 	 * |_|_|/_/ \___|_|___/\___| |_| |_| |_|\_/ |_|\__,_|_| |_|____/_____| |
 	 *                          \_\                                     /_/
 	 */
+	#ifndef DISABLE_IF_ELSE_FNV1AH32
 	{
 		fnv1ah32 fnv1a{};
 		////
@@ -365,6 +411,7 @@ int main() {
 		std::chrono::duration<double, std::milli> duration = (stop - start);
 		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [if/else(fnv1ah32)]" << std::endl;
 	}
+	#endif
 
 
 	/*  _  __   __   _           ____            _       _      __   _  _ __
@@ -374,6 +421,7 @@ int main() {
 	 * |_|_|/_/ \___|_|___/\___| |_| |_| |_|\_/ |_|\__,_|_| |_|\___/   |_| | |
 	 *                          \_\                                       /_/
 	 */
+	#ifndef DISABLE_IF_ELSE_FNV1AH64
 	{
 		fnv1ah64 fnv1a{};
 		////
@@ -393,6 +441,7 @@ int main() {
 		std::chrono::duration<double, std::milli> duration = (stop - start);
 		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [if/else(fnv1ah64)]" << std::endl;
 	}
+	#endif
 
 
 	/*           _
@@ -401,6 +450,7 @@ int main() {
 	 * \__ \  __/ |_
 	 * |___/\___|\__|
 	 */
+	#ifndef DISABLE_SET
 	{
 		std::set<std::string> stop_words_set{
 			#define STRING(option, name) option,
@@ -424,6 +474,7 @@ int main() {
 		std::chrono::duration<double, std::milli> duration = (stop - start);
 		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [set]" << std::endl;
 	}
+	#endif
 
 
 	return 0;
