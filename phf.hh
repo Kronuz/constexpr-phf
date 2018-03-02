@@ -330,12 +330,21 @@ public:
 		return (elem.item == item ? 0 : npos) | elem.pos;
 	}
 
-	constexpr std::size_t operator[](const T& item) const {
+	constexpr std::size_t count(const T& item) const noexcept {
+		const auto& elem = _lookup(item);
+		return elem.item == item;
+	}
+
+	constexpr std::size_t at(const T& item) const {
 		const auto& elem = _lookup(item);
 		if (elem.item == item) {
 			return elem.pos;
 		}
 		throw std::out_of_range("Item not found");
+	}
+
+	constexpr std::size_t operator[](const T& item) const {
+		return at(item);
 	}
 
 	constexpr bool empty() const noexcept {
