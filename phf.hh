@@ -160,14 +160,14 @@ auto constexpr log(T v) {
 
 constexpr static auto npos = std::numeric_limits<std::size_t>::max();
 
-template <template<typename TT, std::size_t NN> class Impl, typename T, std::size_t N>
+template <template<typename TT, std::size_t NN> class Impl, typename T, std::size_t M>
 class phf {
-	using I = Impl<T, N>;
+	using I = Impl<T, M>;
 	using displacement_type = std::uint32_t;
 
-	static_assert(N > 0, "Must have at least one element");
+	static_assert(M > 0, "Must have at least one element");
 	static_assert(I::index_size <= std::numeric_limits<displacement_type>::max(), "Too many elements");
-	static_assert(I::index_size >= N, "index_size must be at least N");
+	static_assert(I::index_size >= M, "index_size must be at least M");
 	static_assert(I::buckets_size > 0, "Must have at least one element");
 	static_assert(std::is_unsigned<T>::value, "Only supports unsigned integral types");
 
@@ -204,8 +204,8 @@ public:
 		assign(std::forward<Args>(args)...);
 	}
 
-	constexpr void assign(const T (&items)[N]) {
-		assign(items, N);
+	constexpr void assign(const T (&items)[M]) {
+		assign(items, M);
 	}
 
 	constexpr void assign(std::initializer_list<T> ilist) {
@@ -218,7 +218,7 @@ public:
 	}
 
 	constexpr void assign(const T* items, std::size_t size) {
-		if (size > N) {
+		if (size > M) {
 			throw std::invalid_argument("PHF failed: too many items received");
 		}
 
@@ -237,7 +237,7 @@ public:
 			constexpr bool operator<(const bucket_mapping_type& other) const {
 				return (*cnt == *other.cnt) ? slot < other.slot : *cnt > *other.cnt;
 			}
-		} bucket_mapping[N]{};
+		} bucket_mapping[M]{};
 
 		// Step 1: Mapping.
 		for (std::size_t pos = 0; pos < size; ++pos) {
@@ -347,17 +347,17 @@ public:
 	}
 
 	constexpr auto max_size() const noexcept {
-		return N;
+		return M;
 	}
 };
 
 
 /***********************************************************************/
 
-template <typename T, std::size_t N>
+template <typename T, std::size_t M>
 struct fast_phf {
-	constexpr static std::size_t buckets_size{1 << log(N / 5)};
-	constexpr static std::size_t index_size{next_prime(N + N / 4)};
+	constexpr static std::size_t buckets_size{1 << log(M / 5)};
+	constexpr static std::size_t index_size{next_prime(M + M / 4)};
 
 	constexpr static T g(T key) {
 		return key;
@@ -371,10 +371,10 @@ struct fast_phf {
 };
 
 
-template <typename T, std::size_t N>
+template <typename T, std::size_t M>
 struct strict_phf {
-	constexpr static std::size_t buckets_size{1 << log(N / 5)};
-	constexpr static std::size_t index_size{next_prime(N + N / 4)};
+	constexpr static std::size_t buckets_size{1 << log(M / 5)};
+	constexpr static std::size_t index_size{next_prime(M + M / 4)};
 
 	constexpr static T g(T key) {
 		return key;
@@ -397,10 +397,10 @@ struct strict_phf {
 /*
  * Make a perfect hash function
  */
-template <template<typename TT, std::size_t NN> class Impl = fast_phf, typename T, std::size_t N>
+template <template<typename TT, std::size_t NN> class Impl = fast_phf, typename T, std::size_t M>
 constexpr static auto
-make_phf(const T (&items)[N]) {
-	return phf<Impl, T, N>(items);
+make_phf(const T (&items)[M]) {
+	return phf<Impl, T, M>(items);
 }
 
 } // namespace phf
