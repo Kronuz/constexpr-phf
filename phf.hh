@@ -357,7 +357,7 @@ public:
 template <typename T, std::size_t M>
 struct fast_phf {
 	constexpr static std::size_t buckets_size{1 << log(M / 5)};
-	constexpr static std::size_t index_size{next_prime(M + M / 4)};
+	constexpr static std::size_t index_size{next_prime(M)};
 
 	constexpr static T g(T key) {
 		return key;
@@ -374,7 +374,7 @@ struct fast_phf {
 template <typename T, std::size_t M>
 struct strict_phf {
 	constexpr static std::size_t buckets_size{1 << log(M / 5)};
-	constexpr static std::size_t index_size{next_prime(M + M / 4)};
+	constexpr static std::size_t index_size{next_prime(M)};
 
 	constexpr static T g(T key) {
 		return key;
