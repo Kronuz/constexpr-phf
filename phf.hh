@@ -134,33 +134,50 @@ struct strong_hasher<std::uint64_t> {
  * Prime functions
  */
 
-constexpr static bool any_factors(std::size_t target, std::size_t start, std::size_t step) {
-	return (
-		!(start * start * 36 > target) &&
-		(
-			( (step == 1)
-				&& ((target % (start * 6 + 1) == 0) ||
-					(target % (start * 6 + 5) == 0))
-			) ||
-			( (step > 1)
-				&& (any_factors(target, start, step / 2) ||
-					any_factors(target, start + step / 2, step / 2))
-			)
-		)
-	);
+template <typename T>
+constexpr static auto power(T x, T y, T m)
+{
+	T p = 1;
+	x = x % m;
+	while (y > 0) {
+		if (y % 2) p = (p * x) % m;
+		y /= 2;
+		x = (x * x) % m;
+	}
+	return p;
 }
 
-constexpr static bool is_prime(std::size_t target) {
-	return (
-		(target == 2 || target == 3 || target == 5) ||
-		(
-			target != 0
-			&& target != 1
-			&& target % 2 != 0
-			&& target % 3 != 0
-			&& target % 5 != 0
-			&& !any_factors(target, 1, target / 6 + 1)
-		)
+template <typename T>
+constexpr static auto miller_rabin_test(T a, T d, T n, T s)
+{
+	auto x = power(a, d, n);
+	if (x == 1 || x == n - 1) return false;
+	for (T i = 1; i < s; ++i) {
+		x = (x * x) % n;
+		if (x == n - 1) return false;
+	}
+	return true;
+}
+
+template <typename T>
+constexpr static bool is_prime(T n)
+{
+	if (!(n % 2)) return false;
+	if (!(n % 3)) return false;
+	if (!(n % 5)) return false;
+	if (!(n % 7)) return false;
+
+	// Miller-Rabin Primality Test
+	auto d = n - 1;
+	T s = 0;
+	do {
+		++s;
+		d /= 2;
+	} while (!(d % 2));
+	return !(
+		miller_rabin_test(static_cast<T>(2), d, n, s) ||
+		miller_rabin_test(static_cast<T>(7), d, n, s) ||
+		miller_rabin_test(static_cast<T>(61), d, n, s)
 	);
 }
 
