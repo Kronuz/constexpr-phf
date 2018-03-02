@@ -69,68 +69,6 @@ constexpr static void quicksort(Iterator left, Iterator right) {
 
 
 /***********************************************************************
- * Integer Hash Functions
- */
-
-// Use fast_hasher for smaller sets.
-template <typename T>
-struct fast_hasher {};
-template <>
-struct fast_hasher<std::uint32_t> {
-	constexpr fast_hasher() { }
-	template <typename S>
-	constexpr std::uint32_t hash(std::uint32_t key, S seed) const {
-		key = key ^ seed;
-		return key;
-	}
-};
-template <>
-struct fast_hasher<std::uint64_t> {
-	constexpr fast_hasher() { }
-	template <typename S>
-	constexpr std::uint64_t hash(std::uint64_t key, S seed) const {
-		key = key ^ seed;
-		return key;
-	}
-};
-
-// Use strong_hasher for larger sets or if table cannot be found.
-template <typename T>
-struct strong_hasher {};
-template <>
-struct strong_hasher<std::uint32_t> {
-	constexpr strong_hasher() { }
-	template <typename S>
-	constexpr std::uint32_t hash(std::uint32_t key, S seed) const {
-		key = key ^ seed;
-		key = ~key + (key << 15); // key = (key << 15) - key - 1;
-		key = key ^ (key >> 12);
-		key = key + (key << 2);
-		key = key ^ (key >> 4);
-		key = key * 2057; // key = (key + (key << 3)) + (key << 11);
-		key = key ^ (key >> 16);
-		return key;
-	}
-};
-template <>
-struct strong_hasher<std::uint64_t> {
-	constexpr strong_hasher() { }
-	template <typename S>
-	constexpr std::uint64_t hash(std::uint64_t key, S seed) const {
-		key = key ^ seed;
-		key = (~key) + (key << 21); // key = (key << 21) - key - 1;
-		key = key ^ (key >> 24);
-		key = (key + (key << 3)) + (key << 8); // key * 265
-		key = key ^ (key >> 14);
-		key = (key + (key << 2)) + (key << 4); // key * 21
-		key = key ^ (key >> 28);
-		key = key + (key << 31);
-		return key;
-	}
-};
-
-
-/***********************************************************************
  * Prime functions
  */
 
@@ -199,21 +137,28 @@ constexpr static auto npos = std::numeric_limits<std::size_t>::max();
 
 /*
  * For minimal perfect hash, use index_size = N
- * For smaller tables, use displacement_size = N / 5
- * For faster (more reliable) construction use displacement_size = N
+ * For smaller tables, use buckets_size = N / 5
+ * For faster (more reliable) construction use buckets_size = N
  */
 template <typename T, std::size_t N,
-	typename Hasher = fast_hasher<T>,
-	std::size_t displacement_size = N / 5,
+	std::size_t buckets_size = N / 5,
 	std::size_t index_size = next_prime(N + N / 4)
 >
 class phf {
 	using displacement_type = std::uint32_t;
 
 	static_assert(N > 0, "Must have at least one element");
+	static_assert(index_size <= std::numeric_limits<displacement_type>::max(), "Too many elements");
 	static_assert(index_size >= N, "index_size must be at least N");
-	static_assert(displacement_size > 0, "Must have at least one element");
+	static_assert(buckets_size > 0, "Must have at least one element");
 	static_assert(std::is_unsigned<T>::value, "Only supports unsigned integral types");
+
+	struct bucket_type {
+		displacement_type d0;
+		displacement_type d1;
+
+		constexpr bucket_type() : d0{0}, d1{0} { }
+	};
 
 	struct index_type {
 		using item_type = T;
@@ -224,14 +169,32 @@ class phf {
 		constexpr index_type() : item{0}, pos{npos} { }
 	};
 
-	Hasher _hasher{};
-
 	std::size_t _size;
-	displacement_type _displacement[displacement_size];
+	bucket_type _buckets[buckets_size];
 	index_type _index[index_size];
 
+	constexpr T g(T key) const {
+		return key % buckets_size;
+	}
+
+	constexpr T f1(T key) const {
+		key = key >> (sizeof(T) / 3) * 8;
+		return key % index_size;
+	}
+
+	constexpr T f2(T key) const {
+		key = key >> (sizeof(T) / 3) * 8 * 2;
+		return key % (index_size - 1) + 1;
+	}
+
+	constexpr const auto& _lookup(const T& item) const noexcept {
+		const auto& bucket =_buckets[g(item)];
+		auto slot = static_cast<std::size_t>((f1(item) + f2(item) * bucket.d0 + bucket.d1) % index_size);
+		return _index[slot];
+	}
+
 public:
-	constexpr phf() : _size{0}, _displacement{}, _index{} { }
+	constexpr phf() : _size{0}, _buckets{}, _index{} { }
 
 	template <typename... Args>
 	constexpr phf(Args&&... args) : phf() {
@@ -259,47 +222,50 @@ public:
 		clear();
 		_size = size;
 
-		std::size_t cnt[displacement_size]{};
-		struct bucket_type {
+		std::size_t cnt[buckets_size]{};
+		struct bucket_mapping_type {
 			std::size_t* cnt;
 			std::size_t slot;
 			std::size_t pos;
 			T item;
-			constexpr bucket_type() : cnt{nullptr}, slot{0}, pos{0}, item{0} { }
-			constexpr bool operator<(const bucket_type& other) const {
+			T f1;
+			T f2;
+			constexpr bucket_mapping_type() : cnt{nullptr}, slot{0}, pos{0}, item{0}, f1{0}, f2{0} { }
+			constexpr bool operator<(const bucket_mapping_type& other) const {
 				return (*cnt == *other.cnt) ? slot < other.slot : *cnt > *other.cnt;
 			}
-		} buckets[N]{};
+		} bucket_mapping[N]{};
 
 		// Step 1: Mapping.
 		for (std::size_t pos = 0; pos < size; ++pos) {
-			auto& bucket = buckets[pos];
+			auto& bucket = bucket_mapping[pos];
 			auto& item = items[pos];
-			auto hashed = item;
-			auto slot = static_cast<std::size_t>(hashed % displacement_size);
+			auto slot = g(item);
 			bucket.cnt = &cnt[slot];
 			bucket.slot = slot;
 			bucket.pos = pos;
 			bucket.item = item;
+			bucket.f1 = f1(item);
+			bucket.f2 = f2(item);
 			++*bucket.cnt;
 		}
 
 		// Step 2: Sort in descending order and process.
-		quicksort(&buckets[0], &buckets[size - 1]);
+		quicksort(&bucket_mapping[0], &bucket_mapping[size - 1]);
 
-		// Step 3: Search for suitable displacement.
-		auto frm = &buckets[0];
+		// Step 3: Search for suitable displacement pair.
+		auto frm = &bucket_mapping[0];
 		auto to = frm;
-		auto end = &buckets[size];
+		auto end = &bucket_mapping[size];
 
 		do {
 			++to;
 			if (to == end || frm->slot != to->slot) {
-				auto& index = _displacement[frm->slot];
-				for (displacement_type displacement = 1; displacement > 0; ++displacement) {
+				auto& bucket = _buckets[frm->slot];
+				for (displacement_type d0{0}, d1{0};;) {
 					auto frm_ = frm;
 					for (; frm_ != to; ++frm_) {
-						auto slot = static_cast<std::size_t>(_hasher.hash(frm_->item, displacement) % index_size);
+						auto slot = static_cast<std::size_t>((frm_->f1 + frm_->f2 * d0 + d1) % index_size);
 						if (_index[slot].pos != npos) {
 							if (_index[slot].item == frm_->item) {
 								throw std::invalid_argument("PHF failed: duplicate items found");
@@ -311,7 +277,8 @@ public:
 						frm_->slot = slot;
 					}
 					if (frm_ == to) {
-						index = displacement;
+						bucket.d0 = d0;
+						bucket.d1 = d1;
 						frm = frm_;
 						break;
 					}
@@ -322,9 +289,12 @@ public:
 						_index[frm__->slot].item = 0;
 #endif
 					}
-				}
-				if (frm != to) {
-					throw std::invalid_argument("PHF failed: cannot find suitable table");
+					if (++d0 == index_size) {
+						d0 = 0;
+						if (++d1 == index_size) {
+							throw std::invalid_argument("PHF failed: cannot find suitable table");
+						}
+					};
 				}
 			}
 		} while (to != end);
@@ -339,25 +309,26 @@ public:
 #endif
 			}
 #ifndef NDEBUG
-			for (std::size_t i = 0; i < displacement_size; ++i) {
-				_displacement[i] = 0;
+			for (std::size_t i = 0; i < buckets_size; ++i) {
+				_buckets[i].d0 = 0;
+				_buckets[i].d1 = 0;
 			}
 #endif
 		}
 	}
 
 	constexpr std::size_t lookup(const T& item) const noexcept {
-		const auto& elem = _index[static_cast<std::size_t>(_hasher.hash(item, _displacement[item % displacement_size]) % index_size)];
+		const auto& elem = _lookup(item);
 		return elem.pos;
 	}
 
 	constexpr std::size_t find(const T& item) const noexcept {
-		const auto& elem = _index[static_cast<std::size_t>(_hasher.hash(item, _displacement[item % displacement_size]) % index_size)];
+		const auto& elem = _lookup(item);
 		return (elem.item == item ? 0 : npos) | elem.pos;
 	}
 
 	constexpr std::size_t operator[](const T& item) const {
-		const auto& elem = _index[static_cast<std::size_t>(_hasher.hash(item, _displacement[item % displacement_size]) % index_size)];
+		const auto& elem = _lookup(item);
 		if (elem.item == item) {
 			return elem.pos;
 		}
@@ -382,25 +353,23 @@ public:
  * Make a perfect hash function
  */
 template <typename T, std::size_t N,
-	typename Hasher = fast_hasher<T>,
-	std::size_t displacement_size = N / 5,
+	std::size_t buckets_size = N / 5,
 	std::size_t index_size = next_prime(N + N / 4)
 >
 constexpr static auto
 make_phf(const T (&items)[N]) {
-	return phf<T, N, Hasher, displacement_size, index_size>(items);
+	return phf<T, N, buckets_size, index_size>(items);
 }
 
 /*
  * Make a minimal perfect hash function
  */
 template <typename T, std::size_t N,
-	typename Hasher = fast_hasher<T>,
-	std::size_t displacement_size = N / 5
+	std::size_t buckets_size = N / 5
 >
 constexpr static auto
 make_mphf(const T (&items)[N]) {
-	return phf<T, N, Hasher, displacement_size, N>(items);
+	return phf<T, N, buckets_size, N>(items);
 }
 
 } // namespace phf
