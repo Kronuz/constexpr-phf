@@ -2,10 +2,10 @@
 c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-stop_words -I ./frozen/include ./tst-benchmark-stop_words.cc && gzcat 'The Count of Monte Cristo.txt.gz' | ./tst-benchmark-stop_words
 */
 
-// #define DISABLE_SWITCH_PHF_FNV1AH32 1
-// #define DISABLE_SWITCH_PHF_FNV1AH64 1
 // #define DISABLE_PHF_FNV1AH32 1
 // #define DISABLE_PHF_FNV1AH64 1
+// #define DISABLE_SWITCH_PHF_FNV1AH32 1
+// #define DISABLE_SWITCH_PHF_FNV1AH64 1
 // #define DISABLE_GPREF 1
 // #define DISABLE_FROZEN_UNORDERED_SET 1
 // #define DISABLE_SWITCH_FNV1AH32 1
@@ -52,6 +52,74 @@ int main() {
 	std::vector<std::string> words{std::istream_iterator<std::string>(std::cin), {}};
 	////////////////////////////////////////////////////////////////////////////
 	std::cerr << "Finding stop words in a total of " << words.size() << " words..." << std::endl;
+
+
+	/*        _      __  ____            _       _     ___________
+	 *  _ __ | |__  / _|/ / _|_ ____   _/ | __ _| |__ |___ /___ \ \
+	 * | '_ \| '_ \| |_| | |_| '_ \ \ / / |/ _` | '_ \  |_ \ __) | |
+	 * | |_) | | | |  _| |  _| | | \ V /| | (_| | | | |___) / __/| |
+	 * | .__/|_| |_|_| | |_| |_| |_|\_/ |_|\__,_|_| |_|____/_____| |
+	 * |_|              \_\                                     /_/
+	 */
+	#ifndef DISABLE_PHF_FNV1AH32
+	{
+		fnv1ah32 fnv1a{};
+		constexpr auto stop_words_phf = phf::make_phf({
+			#define STRING(option, name) fnv1a(option),
+			STOP_WORDS_STRINGS(stop_words)
+			#undef STRING
+		});
+		////
+		std::size_t total = 0;
+		std::size_t stopped = 0;
+		auto start = std::chrono::steady_clock::now();
+		for (int i = 0; i < 100; ++i)
+		for (const auto& word : words) {
+			auto pos = stop_words_phf.find(fnv1a(word));
+			if (pos != phf::npos) {
+				++stopped;
+			}
+			++total;
+		}
+		auto stop = std::chrono::steady_clock::now();
+		std::chrono::duration<double, std::milli> duration = (stop - start);
+		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [phf(fnv1ah32)]" << std::endl;
+	}
+	#endif
+
+
+	/*        _      __  ____            _       _      __   _  _ __
+	 *  _ __ | |__  / _|/ / _|_ ____   _/ | __ _| |__  / /_ | || |\ \
+	 * | '_ \| '_ \| |_| | |_| '_ \ \ / / |/ _` | '_ \| '_ \| || |_| |
+	 * | |_) | | | |  _| |  _| | | \ V /| | (_| | | | | (_) |__   _| |
+	 * | .__/|_| |_|_| | |_| |_| |_|\_/ |_|\__,_|_| |_|\___/   |_| | |
+	 * |_|              \_\                                       /_/
+	 */
+	#ifndef DISABLE_PHF_FNV1AH64
+	{
+		fnv1ah64 fnv1a{};
+		constexpr auto stop_words_phf = phf::make_phf({
+			#define STRING(option, name) fnv1a(option),
+			STOP_WORDS_STRINGS(stop_words)
+			#undef STRING
+		});
+		////
+		std::size_t total = 0;
+		std::size_t stopped = 0;
+		auto start = std::chrono::steady_clock::now();
+		for (int i = 0; i < 100; ++i)
+		for (const auto& word : words) {
+			auto pos = stop_words_phf.find(fnv1a(word));
+			if (pos != phf::npos) {
+				++stopped;
+			}
+			++total;
+		}
+		auto stop = std::chrono::steady_clock::now();
+		std::chrono::duration<double, std::milli> duration = (stop - start);
+		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [phf(fnv1ah64)]" << std::endl;
+	}
+	#endif
 
 
 	/*               _ _       _      __      _      __  ____            _       _     _____________
@@ -124,74 +192,6 @@ int main() {
 		auto stop = std::chrono::steady_clock::now();
 		std::chrono::duration<double, std::milli> duration = (stop - start);
 		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [switch(phf(fnv1ah64))]" << std::endl;
-	}
-	#endif
-
-
-	/*        _      __  ____            _       _     ___________
-	 *  _ __ | |__  / _|/ / _|_ ____   _/ | __ _| |__ |___ /___ \ \
-	 * | '_ \| '_ \| |_| | |_| '_ \ \ / / |/ _` | '_ \  |_ \ __) | |
-	 * | |_) | | | |  _| |  _| | | \ V /| | (_| | | | |___) / __/| |
-	 * | .__/|_| |_|_| | |_| |_| |_|\_/ |_|\__,_|_| |_|____/_____| |
-	 * |_|              \_\                                     /_/
-	 */
-	#ifndef DISABLE_PHF_FNV1AH32
-	{
-		fnv1ah32 fnv1a{};
-		constexpr auto stop_words_phf = phf::make_phf({
-			#define STRING(option, name) fnv1a(option),
-			STOP_WORDS_STRINGS(stop_words)
-			#undef STRING
-		});
-		////
-		std::size_t total = 0;
-		std::size_t stopped = 0;
-		auto start = std::chrono::steady_clock::now();
-		for (int i = 0; i < 100; ++i)
-		for (const auto& word : words) {
-			auto pos = stop_words_phf.find(fnv1a(word));
-			if (pos != phf::npos) {
-				++stopped;
-			}
-			++total;
-		}
-		auto stop = std::chrono::steady_clock::now();
-		std::chrono::duration<double, std::milli> duration = (stop - start);
-		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [phf(fnv1ah32)]" << std::endl;
-	}
-	#endif
-
-
-	/*        _      __  ____            _       _      __   _  _ __
-	 *  _ __ | |__  / _|/ / _|_ ____   _/ | __ _| |__  / /_ | || |\ \
-	 * | '_ \| '_ \| |_| | |_| '_ \ \ / / |/ _` | '_ \| '_ \| || |_| |
-	 * | |_) | | | |  _| |  _| | | \ V /| | (_| | | | | (_) |__   _| |
-	 * | .__/|_| |_|_| | |_| |_| |_|\_/ |_|\__,_|_| |_|\___/   |_| | |
-	 * |_|              \_\                                       /_/
-	 */
-	#ifndef DISABLE_PHF_FNV1AH64
-	{
-		fnv1ah64 fnv1a{};
-		constexpr auto stop_words_phf = phf::make_phf({
-			#define STRING(option, name) fnv1a(option),
-			STOP_WORDS_STRINGS(stop_words)
-			#undef STRING
-		});
-		////
-		std::size_t total = 0;
-		std::size_t stopped = 0;
-		auto start = std::chrono::steady_clock::now();
-		for (int i = 0; i < 100; ++i)
-		for (const auto& word : words) {
-			auto pos = stop_words_phf.find(fnv1a(word));
-			if (pos != phf::npos) {
-				++stopped;
-			}
-			++total;
-		}
-		auto stop = std::chrono::steady_clock::now();
-		std::chrono::duration<double, std::milli> duration = (stop - start);
-		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [phf(fnv1ah64)]" << std::endl;
 	}
 	#endif
 
