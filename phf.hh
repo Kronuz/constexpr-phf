@@ -37,14 +37,14 @@ namespace phf {
  */
 
 template <class T>
-constexpr void swap(T& a, T& b) {
+constexpr static void swap(T& a, T& b) {
 	auto tmp = a;
 	a = b;
 	b = tmp;
 }
 
 template <typename Iterator>
-constexpr Iterator partition(Iterator left, Iterator right) {
+constexpr static Iterator partition(Iterator left, Iterator right) {
 	auto pivot = left + (right - left) / 2;
 	auto value = *pivot;
 	swap(*right, *pivot);
@@ -59,7 +59,7 @@ constexpr Iterator partition(Iterator left, Iterator right) {
 }
 
 template <typename Iterator>
-constexpr void quicksort(Iterator left, Iterator right) {
+constexpr static void quicksort(Iterator left, Iterator right) {
 	if (left < right) {
 		auto pivot = partition(left, right);
 		quicksort(left, pivot);
@@ -134,7 +134,7 @@ struct strong_hasher<std::uint64_t> {
  * Prime functions
  */
 
-constexpr bool any_factors(std::size_t target, std::size_t start, std::size_t step) {
+constexpr static bool any_factors(std::size_t target, std::size_t start, std::size_t step) {
 	return (
 		!(start * start * 36 > target) &&
 		(
@@ -150,7 +150,7 @@ constexpr bool any_factors(std::size_t target, std::size_t start, std::size_t st
 	);
 }
 
-constexpr bool is_prime(std::size_t target) {
+constexpr static bool is_prime(std::size_t target) {
 	return (
 		(target == 2 || target == 3 || target == 5) ||
 		(
@@ -164,13 +164,12 @@ constexpr bool is_prime(std::size_t target) {
 	);
 }
 
-constexpr std::size_t next_prime(std::size_t x) {
-	while (true) {
-		if (is_prime(x)) {
-			return x;
-		}
-		++x;
+constexpr static std::size_t next_prime(std::size_t x) {
+	x += (x % 2) ? 0 : 1;
+	while (!is_prime(x)) {
+		x += 2;
 	}
+	return x;
 }
 
 
