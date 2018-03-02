@@ -129,6 +129,21 @@ constexpr static std::size_t next_prime(std::size_t x) {
 
 
 /***********************************************************************
+ * log2()
+ */
+
+template<class T>
+auto constexpr log(T v) {
+	std::size_t n = 0;
+	while (v) {
+		v /= 2;
+		++n;
+	}
+	return n;
+}
+
+
+/***********************************************************************
  * Computes a constexpr perfect hash function
  * Based on Dr. Daoud's http://iswsa.acm.org/mphf/index.html
  */
@@ -141,8 +156,10 @@ constexpr static auto npos = std::numeric_limits<std::size_t>::max();
  * For faster (more reliable) construction use buckets_size = N
  */
 template <typename T, std::size_t N,
-	std::size_t buckets_size = N / 5,
-	std::size_t index_size = next_prime(N + N / 4)
+	// std::size_t buckets_size = N / 5,
+	// std::size_t index_size = next_prime(N + N / 4)
+	std::size_t buckets_size = 1 << log(N / 5),
+	std::size_t index_size = 1 << log(N + N / 4)
 >
 class phf {
 	using displacement_type = std::uint32_t;
@@ -173,24 +190,23 @@ class phf {
 	bucket_type _buckets[buckets_size];
 	index_type _index[index_size];
 
-	constexpr T g(T key) const {
-		return key % buckets_size;
+	constexpr T _g(T key) const {
+		return key;
 	}
 
-	constexpr T f1(T key) const {
-		key = key >> (sizeof(T) / 3) * 8;
-		return key % index_size;
+	constexpr T _f1(T key) const {
+		// key = (key >> (sizeof(T) / 3) * 8) % index_size;
+		return key;
 	}
 
-	constexpr T f2(T key) const {
-		key = key >> (sizeof(T) / 3) * 8 * 2;
-		return key % (index_size - 1) + 1;
+	constexpr T _f2(T key) const {
+		// key = (key >> (sizeof(T) / 3) * 8 * 2) % (index_size - 1) + 1;
+		return key;
 	}
 
 	constexpr const auto& _lookup(const T& item) const noexcept {
-		const auto& bucket =_buckets[g(item)];
-		auto slot = static_cast<std::size_t>((f1(item) + f2(item) * bucket.d0 + bucket.d1) % index_size);
-		return _index[slot];
+		const auto& bucket =_buckets[_g(item) % buckets_size];
+		return _index[static_cast<std::size_t>((_f1(item) + _f2(item) * bucket.d0 + bucket.d1) % index_size)];
 	}
 
 public:
@@ -240,13 +256,13 @@ public:
 		for (std::size_t pos = 0; pos < size; ++pos) {
 			auto& bucket = bucket_mapping[pos];
 			auto& item = items[pos];
-			auto slot = g(item);
+			auto slot = static_cast<std::size_t>(_g(item) % buckets_size);
 			bucket.cnt = &cnt[slot];
 			bucket.slot = slot;
 			bucket.pos = pos;
 			bucket.item = item;
-			bucket.f1 = f1(item);
-			bucket.f2 = f2(item);
+			bucket.f1 = _f1(item);
+			bucket.f2 = _f2(item);
 			++*bucket.cnt;
 		}
 
