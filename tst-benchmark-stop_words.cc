@@ -10,6 +10,7 @@ c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-stop_words -I ./froz
 // #define DISABLE_FROZEN_UNORDERED_SET 1
 // #define DISABLE_SWITCH_FNV1AH32 1
 // #define DISABLE_SWITCH_FNV1AH64 1
+// #define DISABLE_CTRIE 1
 // #define DISABLE_UNORDERED_SET 1
 // #define DISABLE_UNORDERED_MAP 1
 // #define DISABLE_IF_ELSE_FNV1AH32 1
@@ -36,6 +37,9 @@ c++ -std=c++14 -pedantic -Wall -Wextra -O3 -o tst-benchmark-stop_words -I ./froz
 #include <frozen/string.h>
 #include <frozen/unordered_set.h>
 #endif
+#ifndef DISABLE_CTRIE
+#include "ctrie.hh"
+#endif
 #ifndef DISABLE_UNORDERED_SET
 #include <unordered_set>
 #endif
@@ -52,7 +56,6 @@ int main() {
 	std::vector<std::string> words{std::istream_iterator<std::string>(std::cin), {}};
 	////////////////////////////////////////////////////////////////////////////
 	std::cerr << "Finding stop words in a total of " << words.size() << " words..." << std::endl;
-
 
 	/*        _      __  ____            _       _     ___________
 	 *  _ __ | |__  / _|/ / _|_ ____   _/ | __ _| |__ |___ /___ \ \
@@ -312,6 +315,39 @@ int main() {
 		auto stop = std::chrono::steady_clock::now();
 		std::chrono::duration<double, std::milli> duration = (stop - start);
 		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [switch(fnv1ah64)]" << std::endl;
+	}
+	#endif
+
+
+	/*       _        _
+	 *   ___| |_ _ __(_) ___
+	 *  / __| __| '__| |/ _ \
+	 * | (__| |_| |  | |  __/
+	 *  \___|\__|_|  |_|\___|
+	 */
+	#ifndef DISABLE_CTRIE
+	{
+		constexpr auto stop_words_mph = ctrie::build(
+			#define STRING(option, name) option##_cword,
+			STOP_WORDS_STRINGS(stop_words)
+			#undef STRING
+			""_cword
+		);
+		////
+		std::size_t total = 0;
+		std::size_t stopped = 0;
+		auto start = std::chrono::steady_clock::now();
+		for (int i = 0; i < 100; ++i)
+		for (const auto& word : words) {
+			auto pos = stop_words_mph.find(word);
+			if (pos != ctrie::npos) {
+				++stopped;
+			}
+			++total;
+		}
+		auto stop = std::chrono::steady_clock::now();
+		std::chrono::duration<double, std::milli> duration = (stop - start);
+		std::cerr << "  stopped " << stopped << "/" << total << " in " << duration.count() << " ms [ctrie]" << std::endl;
 	}
 	#endif
 
