@@ -1138,7 +1138,11 @@ auto constexpr log2(T v) {
 template <typename ItemType, std::size_t NumItems>
 class phf {
 	constexpr const static std::size_t buckets_size = 1 << log2(NumItems + 1);  // Important to be a power of 2 (for speed)
-	constexpr const static std::size_t index_size = prime(find_prime(NumItems + NumItems / 4));
+	// Power-of-two table + high-bits multiplicative hash (division-free lookup).
+	constexpr const static std::size_t index_bits = log2(NumItems + NumItems / 4);
+	constexpr const static std::size_t index_size = std::size_t(1) << index_bits;
+	constexpr const static std::size_t item_bits  = sizeof(ItemType) * 8;
+	constexpr const static std::size_t shift      = item_bits - index_bits;
 
 	static_assert(NumItems > 0, "Must have at least one element");
 	static_assert(index_size <= std::numeric_limits<ItemType>::max(), "Too many elements");
@@ -1161,13 +1165,34 @@ class phf {
 	};
 
 	std::size_t _size;
+	bool _premix;  // adaptive: false=fast path, true=robust (pre-mixed) path
 
 	bucket_type _buckets[buckets_size];
 	index_type _index[index_size + 1];
 
+	// Cheap non-linear pre-mix so pathological keys (powers of two, where item*mul is a pure
+	// shift) still spread through the top-bit multiplicative hash. One xorshift breaks the shift
+	// structure; the following multiply (bucket.mul) spreads. Applied identically in build/lookup.
+	static constexpr ItemType mixk(ItemType x) {
+		if (sizeof(ItemType) <= 4) {
+			std::uint32_t h = static_cast<std::uint32_t>(x);
+			h ^= h >> 15; h *= 0x2c1b3c6dU; h ^= h >> 12;
+			return static_cast<ItemType>(h);
+		} else {
+			std::uint64_t h = static_cast<std::uint64_t>(x);
+			h ^= h >> 30; h *= 0xbf58476d1ce4e5b9ULL; h ^= h >> 27;
+			return static_cast<ItemType>(h);
+		}
+	}
+
 	constexpr const auto& _lookup(const ItemType& item) const noexcept {
+		// The `_premix` ternary is a per-instance constant. For any constexpr instance (the
+		// common case) the compiler folds it away: the fast path compiles with no mixk and no
+		// branch, the robust path bakes mixk straight in. It only stays a live (perfectly
+		// predicted) branch for a phf built by a runtime assign(), where the value is unknown
+		// at compile time.
 		const auto& bucket = _buckets[item % buckets_size];
-		const auto& elem = _index[((item * bucket.mul) % index_size) + bucket.off];
+		const auto& elem = _index[(((_premix ? mixk(item) : item) * bucket.mul) >> shift) + bucket.off];
 #ifdef PHF_DEBUG
 		std::cerr << "item:" << item << " => _buckets[item % buckets_size = " << static_cast<std::size_t>(item % buckets_size) << "] => _index[((item * " << bucket.mul << ") % index_size) + " << bucket.off << " = " << (((item * bucket.mul) % index_size) + bucket.off) << "] => " << elem.pos << std::endl;
 #endif
@@ -1175,7 +1200,7 @@ class phf {
 	}
 
 public:
-	constexpr phf() : _size(0), _buckets{}, _index{} { }
+	constexpr phf() : _size(0), _premix(false), _buckets{}, _index{} { }
 
 	template <typename... Args>
 	constexpr phf(Args&&... args) : phf() {
@@ -1202,7 +1227,19 @@ public:
 		if (size > index_size) {
 			throw std::invalid_argument("PHF failed: too many items received");
 		}
+		// Adaptive build: try the fast path (no pre-mix) first; if the multiplier search
+		// cannot place the keys (e.g. adversarial power-of-two keys), fall back to the
+		// robust path (pre-mix). _premix records the choice; the lookup mirrors it.
+		_premix = false;
+		if (!_build(items, size)) {
+			_premix = true;
+			if (!_build(items, size)) {
+				throw std::invalid_argument("PHF failed: cannot find suitable table");
+			}
+		}
+	}
 
+	constexpr bool _build(const ItemType* items, std::size_t size) {
 		clear();
 		_size = size;
 
@@ -1265,7 +1302,7 @@ public:
 				for (; mul && keep_going >= 0; --keep_going) {
 					auto it_mapping = it_mapping_frm;
 					for (; it_mapping < it_mapping_to; ++it_mapping) {
-						auto index_slot = static_cast<std::size_t>((it_mapping->item * mul) % index_size) + 1;
+						auto index_slot = static_cast<std::size_t>(((_premix ? mixk(it_mapping->item) : it_mapping->item) * mul) >> shift) + 1;
 						if (_index[index_slot].pos != npos) {
 							if (_index[index_slot].item == it_mapping->item) {
 #ifdef PHF_DEBUG
@@ -1327,7 +1364,7 @@ public:
 			}
 		} while (it_mapping_to < it_mapping_end);
 		if (!keep_going) {
-			throw std::invalid_argument("PHF failed: cannot find suitable table");
+			return false;
 		}
 #ifdef PHF_DEBUG
 		std::cerr << "=== Completing:" << std::endl;
@@ -1358,6 +1395,7 @@ public:
 		std::cerr << "=== index_size: " << index_size << std::endl;
 		std::cerr << "=== size: " << _size << "/" << NumItems << std::endl;
 #endif
+		return true;
 	}
 
 	constexpr void clear() noexcept {
@@ -1408,7 +1446,14 @@ public:
 	}
 
 	constexpr bool empty() const noexcept {
-		return !!_size;
+		return _size == 0;
+	}
+
+	// Which build path placed this key set: false = the fast division-free multiply-shift,
+	// true = the robust pre-mixed path (chosen automatically only for adversarial keys, e.g.
+	// distinct powers of two). Purely informational; both paths are correct and constant-time.
+	constexpr bool premixed() const noexcept {
+		return _premix;
 	}
 
 	constexpr auto size() const noexcept {

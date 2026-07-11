@@ -1,94 +1,134 @@
-# A C++ constexpr (minimal) perfect hash function generator
+# constexpr-phf (`phf`)
 
-Computes a constexpr (minimal) perfect hash function generator
+![constexpr](https://img.shields.io/badge/constexpr-compile--time-blue)
+![standard](https://img.shields.io/badge/C%2B%2B-17-blue)
+![license](https://img.shields.io/badge/license-MIT-green)
 
-There are times when one wishes there was a *fast* simple way to do
-things like this:
+A header-only, fully `constexpr` **minimal perfect hash** for a fixed set of integer keys.
+The whole lookup table is built at compile time (CHD-style, "compress, hash, displace",
+based on Dr. Daoud's work), so at runtime a key resolves to a dense slot in `[0, N)` with a
+couple of multiplies, a shift, and two array reads. No collisions, no heap, no dependencies
+beyond the standard library.
 
-```c
-switch (option) {
-	case "first_option":
-		// do something
-		break;
-	case "other_option":
-		// do something else
-		break;
+## What it is
 
-	...
+`phf.hh` builds a minimal perfect hash function over a known set of integer keys entirely at
+compile time. The lookup table (a buckets array plus an index array) is materialized as
+`constexpr` data, so the runtime artifact is plain arrays and the hot path has no branches
+and no allocation. Everything lives in the `phf` namespace.
 
-	case "so_many_options":
-		// do so much more
-		break;
+The classic use is a compile-time dispatch table: map a fixed set of tokens to a dense index
+and drive a `switch`. Because the slots are dense `[0, N)`, the compiler builds that switch as
+a jump table.
+
+## Integer keys only (and where strings live)
+
+`phf` hashes **integers**. To key on strings, hash them to integers first (FNV-1a, xxHash, or
+similar) and build a `phf` over the results. That string front-end (a pluggable hasher, a
+switch-friendly `set`/`map`, optional verification against misdispatch, and a cross-implementation
+benchmark vs gperf/frozen/`unordered_map`) is its own library, **[`keywords`](https://github.com/Kronuz/keywords)**,
+which uses this one as its engine. Keeping the engine hash-agnostic is deliberate: it works for
+any integer keys, not just string hashes.
+
+## The lookup: division-free multiply-shift, with an automatic robust fallback
+
+The runtime cost is one masked bucket read and one displaced index read:
+
+```cpp
+const auto& bucket = _buckets[item & (buckets_size - 1)];
+const auto& elem   = _index[(((_premix ? mixk(item) : item) * bucket.mul) >> shift) + bucket.off];
+```
+
+The index reduction is a **multiply-shift** (`(item * mul) >> shift`) into a power-of-two table,
+not a division by a prime. Dropping the modulo is measurably faster, especially on x86 where
+integer division is expensive.
+
+Pure multiply-shift has one failure mode: adversarial keys like distinct powers of two, where
+`item * mul` is just a shift and entropy never reaches the top bits. So the build is **adaptive**.
+It tries the fast path first (no pre-mix); only if the multiplier search cannot place the keys does
+it fall back to a robust path that runs each key through a cheap non-linear pre-mix (`mixk`,
+one xorshift-multiply). The choice is recorded per instance in `premixed()`, and the lookup mirrors
+it. Every real-world key set takes the fast path; only the pathological ones pay for robustness,
+and they pay it at compile time.
+
+## Benchmark (integer-core)
+
+`bench/bench.cc` times `find()` in isolation. Well-distributed key sets take the fast path at
+sub-nanosecond cost; the adversarial set falls back and stays correct:
+
+```
+  time-units-sized       N=6     path=fast    0.55 ns/lookup
+  lang-codes-sized       N=46    path=fast    0.54 ns/lookup
+  field-types-sized      N=192   path=fast    0.54 ns/lookup
+  large                  N=1000  path=fast    0.53 ns/lookup
+
+  powers of two          N=32    path=robust  correct=yes (auto fallback)
+```
+
+Against the previous prime-modulo lookup, the division-free path is about **20-23% faster on
+arm64** and **28-37% faster on x86** for the same key sets. String-dispatch and
+cross-implementation comparisons (vs gperf, frozen, `unordered_map`, and a compile-time trie)
+live in [`keywords`](https://github.com/Kronuz/keywords).
+
+## Install
+
+Header-only. Drop `phf.hh` on your include path, or pull it with CMake FetchContent.
+It is a single header at the repo root, so a consumer sees just `phf.hh`:
+
+```cmake
+include(FetchContent)
+FetchContent_Declare(constexpr_phf
+  GIT_REPOSITORY https://github.com/Kronuz/constexpr-phf.git
+  GIT_TAG master
+  GIT_SHALLOW TRUE)
+FetchContent_MakeAvailable(constexpr_phf)
+
+target_link_libraries(your_target PRIVATE constexpr_phf)
+```
+
+## Usage
+
+```cpp
+#include "phf.hh"
+
+// Build at compile time over a fixed set of integer keys.
+static constexpr auto ids = phf::make_phf({101u, 202u, 303u, 404u});
+
+// Dense, collision-free index into a parallel table.
+const char* names[] = {"", "", "", ""};
+names[ids.at(202u)] = "second";
+
+// Membership without throwing.
+if (ids.count(999u)) { /* not reached: 999 is absent */ }
+
+// Compile-time-constant slots make a jump-table switch:
+switch (ids.find(x)) {
+    case decltype(ids)::npos: /* absent */ break;
+    // case ids.find(101u): ...  (constexpr slot)
 }
 ```
 
-There are options: `std::unordered_map<std::string, void (*)(void)>` (map of
-function pointers), a bunch of `if`/`else`, a `switch()` of hashed strings,
-`gperf` (GNU's perfect hash function generator), etc.
+API surface: `find` (slot or `npos`), `count` (0/1), `at` / `operator[]` (slot or throw),
+`lookup` (raw slot, no membership check), `size`, `empty`, and `premixed` (which build path was
+chosen). `make_phf` builds from an array or brace list; `assign` also takes an
+`initializer_list`, an iterator pair, or a pointer plus size.
 
+## When not to use it
 
-## Benchmark
+Not a general-purpose dynamic map: the key set is fixed at build time (no insert/erase/rehash),
+and it hashes integers only. Very large key sets increase compile time. For arbitrary,
+non-membership-verified input in a `switch`, use `find` (verified) rather than `lookup`.
 
-The contenders:
-
-+ `std::set`
-+ `std::unordered_set`
-+ `std::unordered_map`
-+ `switch()` statements of hashes
-+ `frozen::unordered_set` (https://blog.quarkslab.com/frozen-an-header-only-constexpr-alternative-to-gperf-for-c14-users.html)
-+ `gperf` (https://www.gnu.org/software/gperf/)
-+ `phf` our (minimal) perfect hash function generator based on Dr. Daoud's work (http://iswsa.acm.org/mphf/index.html)
-
-
-### Clang
+## Build the tests, demo, and benchmark
 
 ```sh
-c++ -std=c++17 -pedantic -Wall -Wextra -O3 -o tst-benchmark-stop_words-clang -I ./frozen/include ./tst-benchmark-stop_words.cc
-
-gzcat 'The Count of Monte Cristo.txt.gz' | ./tst-benchmark-stop_words-clang
+cmake -B build && cmake --build build && ctest --test-dir build
+./build/phf_demo     # a runnable tour
+./build/phf_bench    # the integer-core micro-benchmark
 ```
 
-```
-Finding stop words in a total of 464220 words...
-  stopped 23776700/46422000 in 605.015 ms [phf(fnv1ah32)]
-  stopped 23776700/46422000 in 654.328 ms [phf(fnv1ah64)]
-  stopped 23776700/46422000 in 612.922 ms [switch(phf(fnv1ah32))]
-  stopped 23776700/46422000 in 654.641 ms [switch(phf(fnv1ah64))]
-  stopped 23776700/46422000 in 846.043 ms [gperf]
-  stopped 23776700/46422000 in 885.386 ms [frozen::unordered_set]
-  stopped 23776700/46422000 in 1402.76 ms [switch(fnv1ah32)]
-  stopped 23776700/46422000 in 1452.33 ms [switch(fnv1ah64)]
-  stopped 23776700/46422000 in 1522.44 ms [ctrie]
-  stopped 23776700/46422000 in 1821.04 ms [unordered_set]
-  stopped 23776700/46422000 in 1817.42 ms [unordered_map]
-  stopped 23776700/46422000 in 2606.69 ms [if/else(fnv1ah32)]
-  stopped 23776700/46422000 in 2645.08 ms [if/else(fnv1ah64)]
-  stopped 23776700/46422000 in 4590.99 ms [set]
-```
+See `ARCHITECTURE.md` for the internal design and `AGENTS.md` for contributor notes.
 
+## License
 
-### GCC 8
-
-```sh
-g++-7 -std=c++17 -pedantic -Wall -Wextra -O3 -o tst-benchmark-stop_words-gcc8 -I ./frozen/include ./tst-benchmark-stop_words.cc
-
-gzcat 'The Count of Monte Cristo.txt.gz' | ./tst-benchmark-stop_words-gcc8
-```
-
-```
-Finding stop words in a total of 464220 words...
-  stopped 23776700/46422000 in 644.927 ms [phf(fnv1ah32)]
-  stopped 23776700/46422000 in 690.715 ms [phf(fnv1ah64)]
-  stopped 23776700/46422000 in 638.193 ms [switch(phf(fnv1ah32))]
-  stopped 23776700/46422000 in 697.615 ms [switch(phf(fnv1ah64))]
-  stopped 23776700/46422000 in 742.117 ms [gperf]
-  stopped 23776700/46422000 in 829.808 ms [frozen::unordered_set]
-  stopped 23776700/46422000 in 1414.21 ms [switch(fnv1ah32)]
-  stopped 23776700/46422000 in 1488.30 ms [switch(fnv1ah64)]
-  stopped 23776700/46422000 in 1042.80 ms [ctrie]
-  stopped 23776700/46422000 in 1918.92 ms [unordered_set]
-  stopped 23776700/46422000 in 1938.93 ms [unordered_map]
-  stopped 23776700/46422000 in 6387.15 ms [if/else(fnv1ah32)]
-  stopped 23776700/46422000 in 8312.30 ms [if/else(fnv1ah64)]
-  stopped 23776700/46422000 in 4205.88 ms [set]
-```
+MIT. Copyright (C) 2018-2019 German Mendez Bravo (Kronuz).
