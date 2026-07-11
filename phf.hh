@@ -1151,17 +1151,13 @@ class phf {
 	static_assert(std::is_integral<ItemType>::value, "Only supports integral types");
 
 	struct bucket_type {
-		std::uint32_t mul;
-		std::uint32_t off;
-
-		constexpr bucket_type() : mul(0), off(0) { }
+		std::uint32_t mul = 0;
+		std::uint32_t off = 0;
 	};
 
 	struct index_type {
-		ItemType item;
-		std::size_t pos;
-
-		constexpr index_type() : item(0), pos(npos) { }
+		ItemType item = 0;
+		std::size_t pos = npos;
 	};
 
 	std::size_t _size;
@@ -1185,16 +1181,22 @@ class phf {
 		}
 	}
 
-	constexpr const auto& _lookup(const ItemType& item) const noexcept {
+	constexpr index_type _lookup(const ItemType& item) const noexcept {
 		// The `_premix` ternary is a per-instance constant. For any constexpr instance (the
 		// common case) the compiler folds it away: the fast path compiles with no mixk and no
 		// branch, the robust path bakes mixk straight in. It only stays a live (perfectly
 		// predicted) branch for a phf built by a runtime assign(), where the value is unknown
 		// at compile time.
-		const auto& bucket = _buckets[item % buckets_size];
-		const auto& elem = _index[(((_premix ? mixk(item) : item) * bucket.mul) >> shift) + bucket.off];
+		//
+		// Read the bucket and the slot BY VALUE (not through references into the member
+		// arrays). GCC's constexpr evaluator (notably g++-13) rejects reading a member through
+		// a glvalue bound into a mutated constexpr member array; copying the small PODs sidesteps
+		// that and the copies fold away at runtime.
+		const bucket_type bucket = _buckets[item % buckets_size];
+		const std::size_t slot = static_cast<std::size_t>(((_premix ? mixk(item) : item) * bucket.mul) >> shift) + bucket.off;
+		const index_type elem = _index[slot];
 #ifdef PHF_DEBUG
-		std::cerr << "item:" << item << " => _buckets[item % buckets_size = " << static_cast<std::size_t>(item % buckets_size) << "] => _index[((item * " << bucket.mul << ") % index_size) + " << bucket.off << " = " << (((item * bucket.mul) % index_size) + bucket.off) << "] => " << elem.pos << std::endl;
+		std::cerr << "item:" << item << " => _buckets[item % buckets_size = " << static_cast<std::size_t>(item % buckets_size) << "] => _index[" << slot << "] => " << elem.pos << std::endl;
 #endif
 		return elem;
 	}
@@ -1416,12 +1418,12 @@ public:
 	}
 
 	constexpr std::size_t lookup(const ItemType& item) const noexcept {
-		const auto& elem = _lookup(item);
+		const index_type elem = _lookup(item);
 		return elem.pos;
 	}
 
 	constexpr std::size_t find(const ItemType& item) const noexcept {
-		const auto& elem = _lookup(item);
+		const index_type elem = _lookup(item);
 		if (elem.item == item) {
 			return elem.pos;
 		}
@@ -1429,12 +1431,12 @@ public:
 	}
 
 	constexpr std::size_t count(const ItemType& item) const noexcept {
-		const auto& elem = _lookup(item);
+		const index_type elem = _lookup(item);
 		return elem.item == item;
 	}
 
 	constexpr std::size_t at(const ItemType& item) const {
-		const auto& elem = _lookup(item);
+		const index_type elem = _lookup(item);
 		if (elem.item == item) {
 			return elem.pos;
 		}
