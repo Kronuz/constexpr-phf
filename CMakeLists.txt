@@ -32,4 +32,33 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   add_executable(phf_bench bench/bench.cc)
   target_link_libraries(phf_bench PRIVATE constexpr_phf)
   target_compile_options(phf_bench PRIVATE -O3)
+
+  # Cross-strategy comparison (not a test): ./build/phf_compare
+  add_executable(phf_compare bench/compare.cc)
+  target_link_libraries(phf_compare PRIVATE constexpr_phf)
+  target_compile_options(phf_compare PRIVATE -O3)
+
+  # String-dispatch comparison (not tests): the engine used for strings (hash + verify),
+  # against gperf, frozen, a compile-time trie, and std containers. The gperf tables are
+  # pre-generated and committed under bench/; ctrie and frozen are fetched as contenders.
+  include(FetchContent)
+  FetchContent_Declare(ctrie
+    GIT_REPOSITORY https://github.com/Kronuz/ctrie.git
+    GIT_TAG main
+    GIT_SHALLOW TRUE)
+  FetchContent_Declare(frozen
+    GIT_REPOSITORY https://github.com/serge-sans-paille/frozen.git
+    GIT_TAG master
+    GIT_SHALLOW TRUE)
+  FetchContent_MakeAvailable(ctrie frozen)
+
+  add_executable(phf_dispatch_field_types bench/dispatch_field_types.cc)
+  target_link_libraries(phf_dispatch_field_types PRIVATE constexpr_phf ctrie frozen::frozen)
+  target_include_directories(phf_dispatch_field_types PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/bench)
+  target_compile_options(phf_dispatch_field_types PRIVATE -O3)
+
+  add_executable(phf_dispatch_stop_words bench/dispatch_stop_words.cc)
+  target_link_libraries(phf_dispatch_stop_words PRIVATE constexpr_phf ctrie frozen::frozen)
+  target_include_directories(phf_dispatch_stop_words PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/bench)
+  target_compile_options(phf_dispatch_stop_words PRIVATE -O3)
 endif()

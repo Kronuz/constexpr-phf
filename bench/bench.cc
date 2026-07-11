@@ -5,9 +5,9 @@
 // plus a check that an adversarial key set (distinct powers of two) automatically
 // falls back to the robust pre-mixed path and stays correct.
 //
-// This benchmarks the ENGINE only (integer key -> dense slot). String-dispatch and
-// cross-implementation comparisons (vs gperf/frozen/unordered) live in the `keywords`
-// library, which layers a string front-end on top of this core.
+// This benchmarks the ENGINE only (integer key -> dense slot). A companion benchmark,
+// bench/compare.cc, pits it against the alternatives you would otherwise reach for
+// (if-ladder, switch, std::unordered_map) on the same fixed integer key sets.
 //
 // Build & run:
 //   c++ -std=c++17 -O3 -march=native -I .. bench.cc -o bench && ./bench

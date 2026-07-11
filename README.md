@@ -51,24 +51,58 @@ one xorshift-multiply). The choice is recorded per instance in `premixed()`, and
 it. Every real-world key set takes the fast path; only the pathological ones pay for robustness,
 and they pay it at compile time.
 
-## Benchmark (integer-core)
+## Benchmarks
 
-`bench/bench.cc` times `find()` in isolation. Well-distributed key sets take the fast path at
-sub-nanosecond cost; the adversarial set falls back and stays correct:
+Three benchmarks live under `bench/`, built when this repo is the top-level CMake project.
+Numbers below are x86_64, GCC 11, `-O3`.
+
+**Integer core** (`bench/bench.cc`): `find()` in isolation. Every real key set takes the
+division-free fast path; the one adversarial set (distinct powers of two) falls back and
+stays correct. The cost is flat, the same ~1.2 ns whether the set has six keys or a thousand:
 
 ```
-  time-units-sized       N=6     path=fast    0.55 ns/lookup
-  lang-codes-sized       N=46    path=fast    0.54 ns/lookup
-  field-types-sized      N=192   path=fast    0.54 ns/lookup
-  large                  N=1000  path=fast    0.53 ns/lookup
-
-  powers of two          N=32    path=robust  correct=yes (auto fallback)
+  N=6      1.28 ns/lookup   (fast)
+  N=46     1.25 ns/lookup   (fast)
+  N=192    1.18 ns/lookup   (fast)
+  N=1000   1.33 ns/lookup   (fast)
+  powers of two, N=32       correct (robust fallback)
 ```
 
-Against the previous prime-modulo lookup, the division-free path is about **20-23% faster on
-arm64** and **28-37% faster on x86** for the same key sets. String-dispatch and
-cross-implementation comparisons (vs gperf, frozen, `unordered_map`, and a compile-time trie)
-live in [`keywords`](https://github.com/Kronuz/keywords).
+**Versus the alternatives** (`bench/compare.cc`): the same lookup against what you would
+otherwise reach for on a fixed set of sparse (hashed) integer keys, ns/lookup:
+
+| keys | `if`-ladder | `switch` (binary search) | `unordered_map` | `phf` |
+| ---: | ---: | ---: | ---: | ---: |
+| 6 | 2.4 | 4.0 | 3.2 | 1.2 |
+| 46 | 14 | 8.2 | 3.1 | 1.2 |
+| 192 | 38 | 26 | 3.1 | 1.2 |
+| 1000 | 162 | 40 | 3.2 | 1.3 |
+
+The `if`-ladder is linear, a `switch` on sparse keys compiles to an `O(log n)` binary search,
+and `unordered_map` never drops below its hash-plus-probe floor. Only `phf` is flat and low.
+
+**String dispatch** (`bench/dispatch_field_types.cc`, `bench/dispatch_stop_words.cc`): `phf` is
+integer-only, so you dispatch on strings by hashing them first (your choice of hash) and
+verifying the hit. Against gperf, frozen, a compile-time trie, and std containers, on Xapiand's
+192 field-type names (mixed length), ns/op:
+
+| dispatch | ns/op |
+| :-- | ---: |
+| `gperf` (external codegen) | 14 |
+| **constexpr-phf**, hash-only (unverified) | 18 |
+| **constexpr-phf**, hash + verify | 21 |
+| compile-time trie | 28 |
+| `std::unordered_map` | 29 |
+| `frozen::unordered_set` | 40 |
+| `std::set` | 82 |
+
+Hash-only is the fast path (hash, index, done, no compare, which can misdispatch a stranger, so
+you feed it only members or guard first); verified adds one compare at the slot and never
+false-matches. It beats every container, `frozen`, and the trie, and trails only gperf, which
+needs a separate codegen step. On an all-short key set (570 English stop words filtered over a
+464K-word text) constexpr-phf edges ahead of gperf too. The hash is the caller's to pick: a
+word-at-a-time hash suits longer keys (21 ns verified here vs 25 for byte-at-a-time FNV-1a);
+FNV-1a is as cheap on short ones.
 
 ## Install
 
@@ -119,13 +153,19 @@ Not a general-purpose dynamic map: the key set is fixed at build time (no insert
 and it hashes integers only. Very large key sets increase compile time. For arbitrary,
 non-membership-verified input in a `switch`, use `find` (verified) rather than `lookup`.
 
-## Build the tests, demo, and benchmark
+## Build the tests, demo, and benchmarks
 
 ```sh
 cmake -B build && cmake --build build && ctest --test-dir build
-./build/phf_demo     # a runnable tour
-./build/phf_bench    # the integer-core micro-benchmark
+./build/phf_demo                    # a runnable tour
+./build/phf_bench                   # integer-core micro-benchmark
+./build/phf_compare                 # phf vs if-ladder / switch / unordered_map
+./build/phf_dispatch_field_types    # string dispatch vs gperf / frozen / trie / std
+gzip -dc bench/monte-cristo.txt.gz | ./build/phf_dispatch_stop_words
 ```
+
+The dispatch benchmarks fetch `ctrie` and `frozen` as contenders; the gperf tables are
+pre-generated and committed under `bench/`.
 
 See `ARCHITECTURE.md` for the internal design and `AGENTS.md` for contributor notes.
 
