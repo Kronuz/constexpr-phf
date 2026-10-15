@@ -4,6 +4,8 @@ on:
     branches: [main, master]
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '23 7 * * *'  # nightly: flaky timing, and drift in libraries tracked at main
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
