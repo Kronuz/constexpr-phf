@@ -1,5 +1,7 @@
 # constexpr-phf (`phf`)
 
+[![CI](https://github.com/Kronuz/constexpr-phf/actions/workflows/ci.yml/badge.svg)](https://github.com/Kronuz/constexpr-phf/actions/workflows/ci.yml)
+
 ![constexpr](https://img.shields.io/badge/constexpr-compile--time-blue)
 ![standard](https://img.shields.io/badge/C%2B%2B-17-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
