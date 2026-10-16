@@ -6,13 +6,13 @@ Guidance for agents working in this repo.
 
 A single-header, `constexpr` minimal perfect hash for a fixed set of integer keys. Extracted from
 [Xapiand](https://github.com/Kronuz/Xapiand), where it backs compile-time dispatch tables for
-reserved keywords in the query DSL and aggregations. See `README.md` for the user-facing API and
+reserved keywords in the query DSL and aggregations. See `README.md` and `docs/API.md` for the user-facing API and
 `ARCHITECTURE.md` for the internal design.
 
-This is the **integer engine** only. The string front-end (pluggable hashers, a switch-friendly
-`set`/`map`, verification, cross-implementation benchmarks) lives in a separate library,
-[`keywords`](https://github.com/Kronuz/keywords), which depends on this one. Keep this repo
-hash-agnostic and integer-only; do not add a string interface here.
+This is the **integer engine** only. Callers key on strings by hashing them first (with
+[`hashes`](https://github.com/Kronuz/hashes), for example) and verifying the hit for open
+input; `bench/phf_dispatch.hh` is the reference pattern. Keep this repo hash-agnostic and
+integer-only; do not add a string interface here.
 
 ## Repo map
 

@@ -1,0 +1,23 @@
+# constexpr-phf: a two-level minimal perfect hash, searched at compile time.
+# Render: d2 --layout elk --sketch --theme 302 docs/constexpr-phf.d2 docs/constexpr-phf.svg
+direction: right
+
+key: key {
+  label: "integer key\n(e.g. a string's hash)"
+}
+
+buckets: "buckets[]" {
+  label: "bucket = key's hash\n{mul, off}"
+}
+
+slot: dense slot {
+  label: "slot = (key × mul) >> shift + off\nno division"
+}
+
+index: "index[]" {
+  label: "dense [0, N)\none slot per key"
+}
+
+key -> buckets: "first level"
+buckets -> slot: "second level"
+slot -> index
