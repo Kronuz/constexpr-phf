@@ -44,7 +44,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   include(FetchContent)
   FetchContent_Declare(ctrie
     GIT_REPOSITORY https://github.com/Kronuz/ctrie.git
-    GIT_TAG main
+    GIT_TAG 89b7e4dd5e42cc0c50070decba9d45736807a77a
     GIT_SHALLOW TRUE)
   FetchContent_Declare(frozen
     GIT_REPOSITORY https://github.com/serge-sans-paille/frozen.git
