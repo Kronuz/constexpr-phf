@@ -17,7 +17,8 @@ hashed strings.
 ## ✨ Highlights
 
 - **Flat lookups.** `find()` costs about the same whether the set has 6 keys or 1,000:
-  0.48 to 0.53 ns per lookup on an Apple M4 Pro (see [Performance](#-performance)).
+  0.48 to 0.53 ns per lookup on an Apple M4 Pro and 0.92 to 1.17 on an Intel Core i9-9980HK
+  (see [Performance](#-performance)).
 - **Built by the compiler.** The search for a collision-free table runs in `constexpr` and
   leaves two small arrays behind: no heap, no I/O, no static initialization.
 - **Real jump tables.** `find()` of a known key is a compile-time constant, so it works as a
@@ -112,24 +113,33 @@ rounds of 1,228,800 lookups). The *`if` ladder* compares the key with each membe
 compiles into), *`std::unordered_map`* maps each key to its index, and *`phf`* is `find()`. All
 four return each key's index in the sorted key list; a separate check over the same lookups
 found no disagreement. `std::lower_bound` and `std::unordered_map` are
-[libc++](https://libcxx.llvm.org/)'s, as shipped with Apple clang 17.0.0.
+[libc++](https://libcxx.llvm.org/)'s, as shipped with Apple clang 17.0.0 on each machine.
 
-| Keys, Apple M4 Pro | `if` ladder (ns) | binary search (ns) | `std::unordered_map` (ns) | `phf` (ns) |
+| Machine, keys | `if` ladder (ns) | binary search (ns) | `std::unordered_map` (ns) | `phf` (ns) |
 |---|---:|---:|---:|---:|
-| 6 | 1.39 | 1.50 | 1.00 | 0.53 |
-| 46 | 6.64 | 3.93 | 1.61 | 0.53 |
-| 192 | 32.9 | 7.39 | 1.69 | 0.48 |
-| 1,000 | 138 | 8.65 | 1.38 | 0.53 |
+| Apple M4 Pro, 6 | 1.39 | 1.50 | 1.00 | 0.53 |
+| Apple M4 Pro, 46 | 6.64 | 3.93 | 1.61 | 0.53 |
+| Apple M4 Pro, 192 | 32.9 | 7.39 | 1.69 | 0.48 |
+| Apple M4 Pro, 1,000 | 138 | 8.65 | 1.38 | 0.53 |
+| Intel Core i9-9980HK, 6 | 0.76 | 3.14 | 2.55 | 0.98 |
+| Intel Core i9-9980HK, 46 | 7.57 | 10.0 | 10.3 | 0.98 |
+| Intel Core i9-9980HK, 192 | 34.3 | 13.3 | 10.1 | 0.92 |
+| Intel Core i9-9980HK, 1,000 | 82.8 | 13.1 | 6.82 | 1.17 |
+
+On the i9 a six-key `if` ladder beats `phf`; from 46 keys on, `phf` is the fastest on both
+machines.
 
 For strings, a hash in front and one compare at the slot: on Xapiand's 192 field-type names,
 with half of 200,000 lookups missing, `phf` with a word-at-a-time hash takes 14.1 ns per lookup
-on the M4 Pro, against 10.9 for [gperf](https://www.gnu.org/software/gperf/) 3.0.3, 19.7 for
-`std::unordered_map`, 19.8 for [ctrie](https://github.com/Kronuz/ctrie) and 28.2 for
-[frozen](https://github.com/serge-sans-paille/frozen); every contender finds the same 99,543
-members. [docs/BENCHMARKS.md](docs/BENCHMARKS.md) has every contender, a stop-word filter over
-a novel, and the integer core alone.
+on the M4 Pro and 21.4 on the i9, against 10.9 and 16.5 for
+[gperf](https://www.gnu.org/software/gperf/) 3.0.3, 19.7 and 41.7 for `std::unordered_map`,
+19.8 and 30.9 for [ctrie](https://github.com/Kronuz/ctrie) at `bbce6d6`, and 28.2 and 33.0 for
+[frozen](https://github.com/serge-sans-paille/frozen) at `d53e0a1`; every contender finds the
+same 99,543 members. [docs/BENCHMARKS.md](docs/BENCHMARKS.md) has every contender, a stop-word
+filter over a novel, and the integer core alone.
 
-Apple M4 Pro (arm64), macOS 26.7.2, Apple clang 17.0.0, `-O3 -DNDEBUG`:
+Apple M4 Pro (arm64), macOS 26.7.2, Apple clang 17.0.0 (clang-1700.3.19.1), and Intel Core
+i9-9980HK (x86_64), macOS 15.8.1, Apple clang 17.0.0 (clang-1700.6.4.2), both `-O3 -DNDEBUG`:
 
 ```sh
 cmake -B build -DCMAKE_BUILD_TYPE=Release
