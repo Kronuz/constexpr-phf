@@ -44,7 +44,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   include(FetchContent)
   FetchContent_Declare(ctrie
     GIT_REPOSITORY https://github.com/Kronuz/ctrie.git
-    GIT_TAG 89b7e4dd5e42cc0c50070decba9d45736807a77a)  # a pinned commit can't be cloned shallow
+    GIT_TAG bbce6d6c9ce797e93335b306dfdf7efd82286e17)  # a pinned commit can't be cloned shallow
   FetchContent_Declare(frozen
     GIT_REPOSITORY https://github.com/serge-sans-paille/frozen.git
     GIT_TAG master
