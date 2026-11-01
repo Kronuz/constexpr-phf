@@ -28,13 +28,16 @@ integer-only; do not add a string interface here.
   modes. Verifies `at()` is always a bijection into `[0,N)`.
 - `bench/bench.cc` — integer-core micro-benchmark (not a test). Times `find()` in isolation on
   well-distributed key sets (fast path, sub-ns) and confirms the powers-of-two set falls back to the
-  robust path and stays correct. String-dispatch and cross-implementation benchmarks belong in
-  `keywords`, not here.
+  robust path and stays correct.
+- `bench/compare.cc` — the integer lookup against an `if` ladder, a binary search, and
+  `std::unordered_map`. `bench/dispatch_field_types.cc` and `bench/dispatch_stop_words.cc` time
+  string dispatch (`bench/phf_dispatch.hh`) against gperf (tables committed under `bench/`),
+  frozen, ctrie, and the standard containers. `docs/BENCHMARKS.md` has the numbers.
 - `examples/demo.cc` — a runnable tour of the API.
 - `CMakeLists.txt` — the `constexpr_phf` INTERFACE target (exposes the repo root, matching the other
   extracted libs);
   tests, bench, and demo build only when this repo is top-level.
-- `LICENSE` — MIT, Copyright (C) 2018-2019 German Mendez Bravo (Kronuz).
+- `LICENSE` — MIT, Copyright (c) 2018-2026 Germán Méndez Bravo.
 
 ## Build & run
 

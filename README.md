@@ -7,106 +7,167 @@ Part of [Kronuz C++ Libraries](https://github.com/Kronuz/cpp-libraries), a colle
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)
 ![Header-only](https://img.shields.io/badge/header--only-yes-green.svg)
 
-A minimal perfect hash for C++17, built entirely at compile time: a fixed set
-of integer keys maps onto a dense `[0, N)` with no collisions, so dispatching on
-a key is one array index or a real jump table. For keyword tables, protocol
-opcodes, and any `switch` on hashed strings.
-
-![constexpr-phf: a key picks a bucket, whose multiplier and offset place it in a dense slot](docs/constexpr-phf.svg)
+Header-only compile-time minimal perfect hash for C++17: fixed integer keys map to dense slots in two array reads.
+`phf::make_phf` searches for a collision-free table during constant evaluation: a bucket picked
+by the key's low bits holds a multiplier and an offset, and `((key * mul) >> shift) + off` is
+the key's slot. Nothing is built at run time, and `find()` of a known key is a constant that
+works as a `case` label. Reach for it for keyword tables, protocol opcodes and any `switch` on
+hashed strings.
 
 ## ✨ Highlights
 
-- **Flat, fast lookups.** About 1.2 ns whether the set has 6 keys or 1,000; at
-  1,000 keys an `if` ladder takes 162 ns and a `switch` 40 ns
-  ([docs/BENCHMARKS.md](docs/BENCHMARKS.md), x86_64, GCC 11).
-- **Built by the compiler.** The search for a collision-free hash runs in
-  `constexpr`, leaving only two small arrays behind; no heap, no I/O.
-- **Real jump tables.** Every `find()` of a known key is a compile-time constant,
-  so it works as a `case` label.
-- **No division.** Lookups use multiply-shift into a power-of-two table, with a
-  robust pre-mixed fallback chosen at compile time for adversarial keys.
-- **Fast string dispatch.** With a string hash in front, it beats
-  `std::unordered_map`, `frozen`, and a compile-time trie, and trails only gperf,
-  which needs a code generator.
+- **Flat lookups.** `find()` costs about the same whether the set has 6 keys or 1,000:
+  0.48 to 0.53 ns per lookup on an Apple M4 Pro (see [Performance](#-performance)).
+- **Built by the compiler.** The search for a collision-free table runs in `constexpr` and
+  leaves two small arrays behind: no heap, no I/O, no static initialization.
+- **Real jump tables.** `find()` of a known key is a compile-time constant, so it works as a
+  `case` label.
+- **No division.** A lookup multiplies and shifts into a power-of-two table. A key set that
+  defeats the multiplier search, such as distinct powers of two, takes a pre-mixed path chosen
+  when the table is built.
+- **String dispatch.** With a string hash in front and one compare to verify the hit, it beats
+  `std::unordered_map`, `frozen` and a compile-time trie on 192 mixed-length keywords, and
+  trails only gperf, which needs a code generator ([docs/BENCHMARKS.md](docs/BENCHMARKS.md)).
+
+## 🚀 Quick start
+
+A string `switch` that compiles to a jump table. `fnv1a` stands for any `constexpr` string
+hash:
+
+```cpp
+#include "phf.hh"
+
+#include <cstdint>
+#include <cstdio>
+#include <string_view>
+
+constexpr std::uint32_t fnv1a(std::string_view s) {  // any constexpr string hash works
+	std::uint32_t h = 2166136261u;
+	for (char c : s) { h = (h ^ static_cast<unsigned char>(c)) * 16777619u; }
+	return h;
+}
+
+constexpr auto ops = phf::make_phf({fnv1a("add"), fnv1a("remove"), fnv1a("move")});
+
+const char* dispatch(std::string_view op) {
+	switch (ops.find(fnv1a(op))) {  // a jump table: every case label is a constant
+		case ops.find(fnv1a("add")):    return "adding";
+		case ops.find(fnv1a("remove")): return "removing";
+		case ops.find(fnv1a("move")):   return "moving";
+		default:                        return "unknown";
+	}
+}
+
+int main() {
+	std::printf("%s %s %s\n", dispatch("move"), dispatch("add"), dispatch("copy"));
+	// moving adding unknown
+}
+```
+
+`find()` returns the key's index in the list given to `make_phf`, or `phf::npos` for a
+non-key; `at()` throws instead. A perfect hash separates only the keys it was built from, and
+two strings with the same hash look alike to it, so for open input compare the string at the
+slot. [`examples/demo.cc`](examples/demo.cc) shows a parallel table and that check.
 
 ## 📦 Installation
 
-Requires a C++17 compiler; CMake 3.14 or newer for the CMake route. CI builds it
-on Linux (x86_64, arm64), macOS (arm64, x86_64), and FreeBSD, plus ASan, UBSan,
-and TSan builds.
+Requires a C++17 compiler and CMake 3.14 or newer; no other dependencies. CI builds and tests
+it on Linux (x86_64 with GCC and Clang, arm64), macOS (arm64, x86_64) and FreeBSD, plus
+ASan + UBSan and TSan builds.
 
 ```cmake
 include(FetchContent)
 FetchContent_Declare(constexpr_phf
   GIT_REPOSITORY https://github.com/Kronuz/constexpr-phf.git
-  GIT_TAG        master)
+  GIT_TAG        183081ea89f030f214348374c2cc3e5efb741933)  # or master, to track the tip
 FetchContent_MakeAvailable(constexpr_phf)
 
 target_link_libraries(my_app PRIVATE constexpr_phf::constexpr_phf)
 ```
 
-Or copy `phf.hh` onto your include path.
-
-## 🚀 Quick start
-
-A string `switch` that compiles to a jump table. `hash` is any `constexpr` string
-hash you choose:
-
 ```cpp
 #include "phf.hh"
-
-#include <string_view>
-
-static constexpr auto ops = phf::make_phf({hash("add"), hash("remove"), hash("move")});
-
-int dispatch(std::string_view op) {
-	switch (ops.find(hash(op))) {
-		case ops.find(hash("add")):    return do_add();
-		case ops.find(hash("remove")): return do_remove();
-		case ops.find(hash("move")):   return do_move();
-		default:                       return unknown(op);
-	}
-}
 ```
 
-A perfect hash only separates the keys it was built from: for input that may not
-be a member, compare against the key at the slot. `find` returns `phf::npos` for a
-non-key, `at` throws. [`examples/demo.cc`](examples/demo.cc) shows parallel
-tables and the verified pattern.
+The target is header-only, so copying `phf.hh` onto the include path works too.
 
 ## 🎯 When to use it
 
-- ✅ A fixed set of integer keys known at build time, looked up often.
-- ✅ String dispatch, with a hash in front and a verify step for open input.
-- ❌ Keys that change at runtime: there is no insert or erase.
-- ❌ Very large key sets: the search runs at compile time and costs build time.
+A fixed set of integer keys known at build time and looked up often, or string dispatch with a
+hash in front and a verify step for open input.
+
+Not for:
+
+- Keys that change at run time: there is no insert or erase.
+- Very large key sets: the search runs at compile time, and every build pays for it.
+- Keys that are not integers: `phf` hashes integers only, so hash strings first (for example
+  with [hashes](https://github.com/Kronuz/hashes)).
+
+## ⚡ Performance
+
+`phf_compare` looks up member keys drawn at random from fixed sets of 6, 46, 192 and 1,000
+sparse 32-bit keys, in nanoseconds per lookup (the best of three runs, each the best of nine
+rounds of 1,228,800 lookups). The *`if` ladder* compares the key with each member in turn,
+*binary search* is `std::lower_bound` over the sorted keys (what a `switch` on sparse keys
+compiles into), *`std::unordered_map`* maps each key to its index, and *`phf`* is `find()`. All
+four return each key's index in the sorted key list; a separate check over the same lookups
+found no disagreement. `std::lower_bound` and `std::unordered_map` are
+[libc++](https://libcxx.llvm.org/)'s, as shipped with Apple clang 17.0.0.
+
+| Keys, Apple M4 Pro | `if` ladder (ns) | binary search (ns) | `std::unordered_map` (ns) | `phf` (ns) |
+|---|---:|---:|---:|---:|
+| 6 | 1.39 | 1.50 | 1.00 | 0.53 |
+| 46 | 6.64 | 3.93 | 1.61 | 0.53 |
+| 192 | 32.9 | 7.39 | 1.69 | 0.48 |
+| 1,000 | 138 | 8.65 | 1.38 | 0.53 |
+
+For strings, a hash in front and one compare at the slot: on Xapiand's 192 field-type names,
+with half of 200,000 lookups missing, `phf` with a word-at-a-time hash takes 14.1 ns per lookup
+on the M4 Pro, against 10.9 for [gperf](https://www.gnu.org/software/gperf/) 3.0.3, 19.7 for
+`std::unordered_map`, 19.8 for [ctrie](https://github.com/Kronuz/ctrie) and 28.2 for
+[frozen](https://github.com/serge-sans-paille/frozen); every contender finds the same 99,543
+members. [docs/BENCHMARKS.md](docs/BENCHMARKS.md) has every contender, a stop-word filter over
+a novel, and the integer core alone.
+
+Apple M4 Pro (arm64), macOS 26.7.2, Apple clang 17.0.0, `-O3 -DNDEBUG`:
+
+```sh
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target phf_compare phf_dispatch_field_types
+./build/phf_compare
+./build/phf_dispatch_field_types
+```
 
 ## 📚 Documentation
 
-- [docs/API.md](docs/API.md): `make_phf`, the members, integer keys and strings,
-  and when not to use it.
-- [ARCHITECTURE.md](ARCHITECTURE.md): the data layout, the lookup formula, the
-  pre-mix, and the adaptive build.
-- [docs/BENCHMARKS.md](docs/BENCHMARKS.md): the integer core, the comparison with
-  `if` ladders, `switch`, and `unordered_map`, and string dispatch against gperf,
-  frozen, and a trie.
+- [docs/API.md](docs/API.md): `make_phf`, the members, integer keys and strings, and when not
+  to use it.
+- [ARCHITECTURE.md](ARCHITECTURE.md): the data layout, the lookup formula, the pre-mix, and the
+  adaptive build.
+- [docs/BENCHMARKS.md](docs/BENCHMARKS.md): the integer core, the comparison with an `if`
+  ladder, a binary search and `std::unordered_map`, and string dispatch against gperf, frozen,
+  a compile-time trie and the standard containers.
 - [AGENTS.md](AGENTS.md): repository map, invariants, and traps.
+- [Catalog entry](https://github.com/Kronuz/cpp-libraries/blob/main/AGENTS.md#constexpr-phf) in
+  Kronuz C++ Libraries.
 
 ## 🛠️ Building and testing
 
 ```sh
-cmake -B build && cmake --build build && ctest --test-dir build
-./build/phf_demo
-./build/phf_compare
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
-The dispatch benchmarks fetch `ctrie` and `frozen`; the gperf tables are
-committed under `bench/`.
+`./build/phf_demo` runs the tour. The benchmarks (`phf_bench`, `phf_compare`,
+`phf_dispatch_field_types` and `phf_dispatch_stop_words`) build with the tests; the dispatch
+benchmarks fetch ctrie and frozen, and the gperf tables are committed under `bench/`.
 
 ## 🤝 Contributing
 
-Issues and pull requests are welcome. Read [AGENTS.md](AGENTS.md) first. CI must
-pass on every platform.
+Issues and pull requests are welcome. Read [AGENTS.md](AGENTS.md) and the catalog's
+[rules of engagement](https://github.com/Kronuz/cpp-libraries/blob/main/AGENTS.md#rules-of-engagement)
+first; CI must pass on every platform.
 
 ## 📄 License
 

@@ -1,49 +1,102 @@
 # constexpr-phf benchmarks
 
-Three benchmarks live under `bench/`, built when this repo is the top-level CMake project.
-Numbers below are x86_64, GCC 11, `-O3`.
+Four benchmarks live under `bench/` and build when this repository is the top-level CMake
+project. The numbers below are from an Apple M4 Pro (arm64, macOS 26.7.2) with Apple clang
+17.0.0 and `-O3 -DNDEBUG`, at commit `dd7a9ff`, and each is the best of three runs. The
+comparators' versions: libc++ as shipped with Apple clang 17.0.0 for the standard containers,
+[gperf](https://www.gnu.org/software/gperf/) 3.0.3 and 3.1 for the committed tables,
+[frozen](https://github.com/serge-sans-paille/frozen) at `d53e0a1` and
+[ctrie](https://github.com/Kronuz/ctrie) at `bbce6d6`.
 
-**Integer core** (`bench/bench.cc`): `find()` in isolation. Every real key set takes the
-division-free fast path; the one adversarial set (distinct powers of two) falls back and stays
-correct. The cost is flat, the same ~1.2 ns whether the set has six keys or a thousand:
-
+```sh
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+./build/phf_bench
+./build/phf_compare
+./build/phf_dispatch_field_types
+gzcat bench/monte-cristo.txt.gz | ./build/phf_dispatch_stop_words
 ```
-  N=6      1.28 ns/lookup   (fast)
-  N=46     1.25 ns/lookup   (fast)
-  N=192    1.18 ns/lookup   (fast)
-  N=1000   1.33 ns/lookup   (fast)
-  powers of two, N=32       correct (robust fallback)
-```
 
-**Versus the alternatives** (`bench/compare.cc`): the same lookup against what you would
-otherwise reach for on a fixed set of sparse (hashed) integer keys, ns/lookup:
+## Integer core
 
-| keys | `if`-ladder | `switch` (binary search) | `unordered_map` | `phf` |
+`phf_bench` times `find()` alone over 4,096 member keys drawn at random from a set of random
+32-bit keys, in nanoseconds per lookup (best of seven rounds of 2,048,000 lookups). *Path* is
+the build path the table took: *fast* is the plain multiply-shift, *pre-mixed* the fallback.
+
+| Keys | Path | ns per lookup |
+| ---: | :-- | ---: |
+| 6 | fast | 0.58 |
+| 46 | fast | 0.54 |
+| 192 | fast | 0.49 |
+| 1,000 | fast | 0.54 |
+
+A set of 32 distinct powers of two defeats the fast path; the table takes the pre-mixed path
+and places every key in its own slot.
+
+## Versus the alternatives
+
+`phf_compare` looks up member keys drawn at random from fixed sets of sparse 32-bit keys, in
+nanoseconds per lookup (best of nine rounds of 1,228,800 lookups). The *`if` ladder* compares
+the key with each member in turn, *binary search* is `std::lower_bound` over the sorted keys
+(what a `switch` on sparse keys compiles into), *`std::unordered_map`* maps each key to its
+index, and *`phf`* is `find()`. All four return each key's index in the sorted key list, and a
+separate check over the same lookups found no disagreement.
+
+| Keys | `if` ladder | binary search | `std::unordered_map` | `phf` |
 | ---: | ---: | ---: | ---: | ---: |
-| 6 | 2.4 | 4.0 | 3.2 | 1.2 |
-| 46 | 14 | 8.2 | 3.1 | 1.2 |
-| 192 | 38 | 26 | 3.1 | 1.2 |
-| 1000 | 162 | 40 | 3.2 | 1.3 |
+| 6 | 1.39 | 1.50 | 1.00 | 0.53 |
+| 46 | 6.64 | 3.93 | 1.61 | 0.53 |
+| 192 | 32.9 | 7.39 | 1.69 | 0.48 |
+| 1,000 | 138 | 8.65 | 1.38 | 0.53 |
 
-The `if`-ladder is linear, a `switch` on sparse keys compiles to an `O(log n)` binary search,
-and `unordered_map` never drops below its hash-plus-probe floor. Only `phf` is flat and low.
+The `if` ladder grows with the set, the binary search with its logarithm, and
+`std::unordered_map` stays near its hash-and-probe floor; `phf` stays flat and lowest.
 
-**String dispatch** (`bench/dispatch_field_types.cc`, `bench/dispatch_stop_words.cc`): the
-engine used for strings (hash + verify) against gperf, frozen, a compile-time trie, and std
-containers, on Xapiand's 192 field-type names (mixed length), ns/op:
+## String dispatch
 
-| dispatch | ns/op |
+The library hashes integers, so string dispatch puts a hash in front. Two hashes from
+`bench/phf_dispatch.hh` appear: *fnv1a* (64-bit FNV-1a, a byte at a time) and *wordwise* (eight
+bytes per step). *Verified* compares the string at the slot after `find()`, so a non-member
+never matches; *hash-only* skips that compare, so a non-member whose hash equals a member's
+would match. *`switch` on the hash* is a `switch` over the FNV-1a hash with one `case` per
+member, which the compiler turns into a binary search. The other rows are the named library or
+container holding the same strings.
+
+**Field types** (`phf_dispatch_field_types`): Xapiand's 192 field-type names (2 to 23 bytes,
+median 14) and 200,000 lookups, half of them a name with a `!` appended, so they miss; best of
+15 passes, nanoseconds per lookup. Every contender finds the same 99,543 members.
+
+| Contender | ns per lookup |
 | :-- | ---: |
-| `gperf` (external codegen) | 14 |
-| **constexpr-phf**, hash-only (unverified) | 18 |
-| **constexpr-phf**, hash + verify | 21 |
-| compile-time trie | 28 |
-| `std::unordered_map` | 29 |
-| `frozen::unordered_set` | 40 |
-| `std::set` | 82 |
+| `phf`, hash-only (wordwise) | 8.99 |
+| gperf 3.0.3 | 10.9 |
+| `phf`, verified (wordwise) | 14.1 |
+| `phf`, verified (fnv1a) | 17.0 |
+| `std::unordered_map` | 19.7 |
+| ctrie | 19.8 |
+| `std::unordered_set` | 20.0 |
+| frozen `unordered_set` | 28.2 |
+| `switch` on the hash (unverified) | 30.8 |
+| `std::set` | 56.5 |
 
-Hash-only is the fast path (hash, index, done, no compare, which can misdispatch a stranger, so
-you feed it only members or guard first); verified adds one compare at the slot and never
-false-matches. It beats every container, `frozen`, and the trie, and trails only gperf, which
-needs a separate codegen step. On an all-short key set (570 English stop words filtered over a
-464K-word text) constexpr-phf edges ahead of gperf too. The hash is the caller's to pick.
+**Stop words** (`phf_dispatch_stop_words`): 570 English stop words filtered out of the 464,220
+words of *The Count of Monte Cristo* (`bench/monte-cristo.txt.gz`), milliseconds per pass, best
+of 15 passes. Every contender counts the same 237,767 stop words.
+
+| Contender | ms per pass |
+| :-- | ---: |
+| `phf`, hash-only (fnv1a) | 3.40 |
+| `phf`, verified (fnv1a) | 4.53 |
+| `switch` on the verified `phf` slot | 4.54 |
+| gperf 3.1 | 4.57 |
+| `phf`, verified (wordwise) | 5.26 |
+| frozen `unordered_set` | 5.94 |
+| `std::unordered_set` | 7.07 |
+| `std::unordered_map` | 7.23 |
+| ctrie | 7.60 |
+| `switch` on the hash (unverified) | 9.26 |
+| `std::set` | 32.6 |
+
+On the mixed-length names, verified `phf` beats every container, frozen and the trie and trails
+only gperf, which needs a code generator; on the short stop words it matches gperf. Which hash
+wins depends on the keys: wordwise on the longer names, FNV-1a on the short words.
