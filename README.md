@@ -150,6 +150,8 @@ cmake --build build --target phf_compare phf_dispatch_field_types
 
 ## 📚 Documentation
 
+- [No Collisions, Ever](https://kronuz.github.io/blog/perfect-hash/):
+  the Familiars post on why it exists and how it works.
 - [docs/API.md](docs/API.md): `make_phf`, the members, integer keys and strings, and when not
   to use it.
 - [ARCHITECTURE.md](ARCHITECTURE.md): the data layout, the lookup formula, the pre-mix, and the
